@@ -1,35 +1,6 @@
-"use client"
-
-import { useState } from "react"
+import { signIn } from "@/lib/auth"
 
 export default function SignIn() {
-  const [isLoading, setIsLoading] = useState(false)
-
-  const handleGoogleSignIn = async () => {
-    setIsLoading(true)
-    try {
-      const form = new FormData()
-      form.append("providerId", "google")
-      form.append("callbackUrl", "/dashboard")
-
-      const response = await fetch("/api/auth/signin", {
-        method: "POST",
-        body: form,
-      })
-
-      if (response.redirected) {
-        window.location.href = response.url
-      } else {
-        window.location.href = "/api/auth/signin/google?callbackUrl=" + encodeURIComponent("/dashboard")
-      }
-    } catch (error) {
-      console.error("Sign in error:", error)
-      window.location.href = "/api/auth/signin/google?callbackUrl=" + encodeURIComponent("/dashboard")
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="max-w-md w-full space-y-8">
@@ -42,20 +13,16 @@ export default function SignIn() {
           </p>
         </div>
         <div>
-          <button
-            onClick={handleGoogleSignIn}
-            disabled={isLoading}
-            className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+          <form
+            action={async () => {
+              "use server"
+              await signIn("google", { redirectTo: "/dashboard" })
+            }}
           >
-            {isLoading ? (
-              <span className="flex items-center">
-                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                로그인 중...
-              </span>
-            ) : (
+            <button
+              type="submit"
+              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            >
               <span className="flex items-center">
                 <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
                   <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -65,8 +32,8 @@ export default function SignIn() {
                 </svg>
                 Google로 로그인
               </span>
-            )}
-          </button>
+            </button>
+          </form>
         </div>
       </div>
     </div>
