@@ -1,7 +1,7 @@
 {
   "build": {
     "env": {
-      "PRISMA_GENERATE_SKIP_AUTOINSTALL": "true",
+      "PRISMA_GENERATE_SKIP_AUTOINSTALL": "false",
       "PRISMA_CLI_BINARY_TARGETS": "rhel-openssl-3.0.x"
     }
   },
