@@ -1,13 +1,15 @@
 {
   "build": {
     "env": {
-      "PRISMA_SKIP_POSTINSTALL_GENERATE": "false"
+      "PRISMA_SKIP_POSTINSTALL_GENERATE": "false",
+      "PRISMA_CLI_BINARY_TARGETS": "rhel-openssl-3.0.x"
     }
   },
   "functions": {
     "app/api/**/*.ts": {
       "maxDuration": 10,
-      "memory": 1024
+      "memory": 1024,
+      "includeFiles": "node_modules/.prisma/client/**"
     }
   }
 }

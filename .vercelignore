@@ -1,3 +1,0 @@
-# Don't ignore node_modules/.prisma (Prisma engines need to be included)
-!node_modules/.prisma
-!node_modules/@prisma/client
