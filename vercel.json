@@ -6,15 +6,15 @@
     }
   },
   "functions": {
-    "app/api/**/*.ts": {
+    "app/api/**": {
       "maxDuration": 10,
       "includeFiles": "node_modules/.prisma/client/**"
     },
-    "pages/api/**/*.ts": {
+    "pages/api/**": {
       "maxDuration": 10,
       "includeFiles": "node_modules/.prisma/client/**"
     },
-    "api/**/*.ts": {
+    "api/**": {
       "maxDuration": 10,
       "includeFiles": "node_modules/.prisma/client/**"
     }
