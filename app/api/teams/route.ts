@@ -1,11 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
-import { Prisma } from "@prisma/client"
-
-type TeamMemberWithTeam = Prisma.TeamMemberGetPayload<{
-  include: { team: true }
-}>
 
 export async function GET(request: NextRequest) {
   const session = await auth()
@@ -22,7 +17,8 @@ export async function GET(request: NextRequest) {
       },
     })
 
-    return NextResponse.json(teams.map((tm: TeamMemberWithTeam) => ({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return NextResponse.json(teams.map((tm: any) => ({
       ...tm.team,
       role: tm.role,
       tier: tm.tier,
