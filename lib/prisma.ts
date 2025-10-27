@@ -17,7 +17,7 @@ const createPrismaClient = () => {
     if (url && authToken) {
       const libsql = createClient({ url, authToken })
       const adapter = new PrismaLibSQL(libsql as any)
-      return new PrismaClient({ adapter })
+      return new PrismaClient({ adapter } as any)
     }
 
     console.warn('Turso credentials not available, using local SQLite')
