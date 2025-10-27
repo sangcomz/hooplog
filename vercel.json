@@ -1,20 +1,12 @@
 {
   "build": {
     "env": {
-      "PRISMA_GENERATE_SKIP_AUTOINSTALL": "true",
+      "PRISMA_GENERATE_SKIP_AUTOINSTALL": "false",
       "PRISMA_CLI_BINARY_TARGETS": "rhel-openssl-3.0.x"
     }
   },
   "functions": {
-    "app/api/**": {
-      "maxDuration": 10,
-      "includeFiles": "node_modules/.prisma/client/**"
-    },
-    "pages/api/**": {
-      "maxDuration": 10,
-      "includeFiles": "node_modules/.prisma/client/**"
-    },
-    "api/**": {
+    "app/api/**/*.ts": {
       "maxDuration": 10,
       "includeFiles": "node_modules/.prisma/client/**"
     }
