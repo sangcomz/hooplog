@@ -3,36 +3,38 @@ import { PrismaLibSQL } from '@prisma/adapter-libsql'
 import { createClient } from '@libsql/client'
 
 const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined
+    prisma: PrismaClient | undefined
 }
 
 const isValidEnv = (v?: string) => Boolean(v) && v !== 'undefined' && v !== 'null'
 
 const createPrismaClient = () => {
-  // Use Turso in production, local SQLite in development
-  const useTurso = process.env.NODE_ENV === 'production' || process.env.USE_TURSO === 'true'
+    const useTurso = process.env.NODE_ENV === 'production' || process.env.USE_TURSO === 'true'
 
-  if (useTurso) {
-    const url = process.env.TURSO_DATABASE_URL
-    const authToken = process.env.TURSO_AUTH_TOKEN
+    let url: string
+    let authToken: string | undefined
 
-    if (isValidEnv(url) && isValidEnv(authToken)) {
-      try {
-        const libsql = createClient({ url: url as string, authToken: authToken as string })
-        const adapter = new PrismaLibSQL(libsql as any)
-        return new PrismaClient({ adapter } as any)
-      } catch (err) {
-        // If anything goes wrong initializing the Turso client at build time,
-        // fall back to the local SQLite client so the build can continue.
-        console.warn('Failed to initialize Turso client (falling back to SQLite):', err)
-      }
+    if (useTurso) {
+        console.log("Initializing Prisma with Turso DB...")
+        url = process.env.TURSO_DATABASE_URL!
+        authToken = process.env.TURSO_AUTH_TOKEN
+
+        if (!isValidEnv(url) || !isValidEnv(authToken)) {
+            throw new Error('TURSO_DATABASE_URL and TURSO_AUTH_TOKEN must be set when using Turso.')
+        }
     } else {
-      console.warn('Turso credentials not available or invalid (e.g. "undefined"), using local SQLite')
-    }
-  }
+        console.log("Initializing Prisma with Local SQLite DB...")
+        url = process.env.DATABASE_URL!
+        authToken = undefined
 
-  // Local development with SQLite
-  return new PrismaClient()
+        if (!isValidEnv(url)) {
+            throw new Error('DATABASE_URL must be set for local development (e.g., "file:./dev.db").')
+        }
+    }
+
+    const libsql = createClient({ url, authToken })
+    const adapter = new PrismaLibSQL(libsql as any)
+    return new PrismaClient({ adapter } as any)
 }
 
 export const prisma = globalForPrisma.prisma ?? createPrismaClient()
