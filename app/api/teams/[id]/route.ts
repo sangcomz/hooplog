@@ -57,6 +57,6 @@ export async function GET(
     return NextResponse.json(team)
   } catch (error) {
     console.error("Failed to fetch team:", error)
-    return NextResponse.json({ error: "Internal Server Error ;(" }, { status: 500 })
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
   }
 }
