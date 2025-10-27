@@ -9,6 +9,14 @@
     "app/api/**/*.ts": {
       "maxDuration": 10,
       "includeFiles": "node_modules/.prisma/client/**"
+    },
+    "pages/api/**/*.ts": {
+      "maxDuration": 10,
+      "includeFiles": "node_modules/.prisma/client/**"
+    },
+    "api/**/*.ts": {
+      "maxDuration": 10,
+      "includeFiles": "node_modules/.prisma/client/**"
     }
   }
 }
