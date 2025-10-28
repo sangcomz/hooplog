@@ -20,39 +20,54 @@ const runMigrate = async () => {
 
   // Get all .sql files from drizzle folder
   const migrationsFolder = join(process.cwd(), "drizzle")
-  const migrationFiles = readdirSync(migrationsFolder)
-    .filter((file) => file.endsWith(".sql"))
-    .sort()
 
-  console.log(`Found ${migrationFiles.length} migration files`)
+  // Check if migrations folder exists
+  try {
+    const migrationFiles = readdirSync(migrationsFolder)
+      .filter((file) => file.endsWith(".sql"))
+      .sort()
 
-  // Execute each migration
-  for (const file of migrationFiles) {
-    console.log(`Running migration: ${file}`)
-    const sql = readFileSync(join(migrationsFolder, file), "utf8")
+    if (migrationFiles.length === 0) {
+      console.log("No migration files found, skipping...")
+      process.exit(0)
+    }
 
-    // Split by statement-breakpoint and execute each statement
-    const statements = sql
-      .split("--> statement-breakpoint")
-      .map((s) => s.trim())
-      .filter((s) => s.length > 0)
+    console.log(`Found ${migrationFiles.length} migration files`)
 
-    for (const statement of statements) {
-      try {
-        await client.execute(statement)
-      } catch (error: any) {
-        // Ignore "already exists" errors
-        if (error.message?.includes("already exists")) {
-          console.log(`  Skipping (already exists): ${statement.substring(0, 50)}...`)
-        } else {
-          throw error
+    // Execute each migration
+    for (const file of migrationFiles) {
+      console.log(`Running migration: ${file}`)
+      const sql = readFileSync(join(migrationsFolder, file), "utf8")
+
+      // Split by statement-breakpoint and execute each statement
+      const statements = sql
+        .split("--> statement-breakpoint")
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0)
+
+      for (const statement of statements) {
+        try {
+          await client.execute(statement)
+        } catch (error: any) {
+          // Ignore "already exists" errors
+          if (error.message?.includes("already exists")) {
+            console.log(`  Skipping (already exists): ${statement.substring(0, 50)}...`)
+          } else {
+            throw error
+          }
         }
       }
     }
-  }
 
-  console.log("Migrations completed successfully!")
-  process.exit(0)
+    console.log("Migrations completed successfully!")
+    process.exit(0)
+  } catch (error: any) {
+    if (error.code === 'ENOENT') {
+      console.log("No migrations folder found, skipping...")
+      process.exit(0)
+    }
+    throw error
+  }
 }
 
 runMigrate().catch((err) => {
