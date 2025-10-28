@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
-import { db, games, teamMembers, users, attendances } from "@/lib/db"
+import { db, games, teamMembers, users, attendances, guests, scores, comments } from "@/lib/db"
 import { eq, and } from "drizzle-orm"
 
 export async function GET(
@@ -166,6 +166,66 @@ export async function PATCH(
     return NextResponse.json(updatedGame)
   } catch (error) {
     console.error("Failed to update game status:", error)
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string; gameId: string }> }
+) {
+  const session = await auth()
+
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
+  try {
+    const { id: teamId, gameId } = await params
+
+    // Check if user is a manager of the team
+    const memberCheck = await db
+      .select()
+      .from(teamMembers)
+      .where(
+        and(
+          eq(teamMembers.userId, session.user.id),
+          eq(teamMembers.teamId, teamId),
+          eq(teamMembers.role, "MANAGER")
+        )
+      )
+      .limit(1)
+
+    if (memberCheck.length === 0) {
+      return NextResponse.json(
+        { error: "Only managers can delete games" },
+        { status: 403 }
+      )
+    }
+
+    // Check if the game exists and belongs to the team
+    const gameCheck = await db
+      .select()
+      .from(games)
+      .where(and(eq(games.id, gameId), eq(games.teamId, teamId)))
+      .limit(1)
+
+    if (gameCheck.length === 0) {
+      return NextResponse.json({ error: "Game not found" }, { status: 404 })
+    }
+
+    // Delete related records first to avoid foreign key constraints
+    await db.delete(comments).where(eq(comments.gameId, gameId))
+    await db.delete(scores).where(eq(scores.gameId, gameId))
+    await db.delete(guests).where(eq(guests.gameId, gameId))
+    await db.delete(attendances).where(eq(attendances.gameId, gameId))
+
+    // Delete the game
+    await db.delete(games).where(eq(games.id, gameId))
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error("Failed to delete game:", error)
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
   }
 }

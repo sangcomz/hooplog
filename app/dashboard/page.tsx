@@ -105,12 +105,12 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">안녕하세요, {session.user?.name}님!</h1>
-            <p className="text-gray-600 mt-2">참여할 팀을 선택하거나 새로운 팀을 만들어보세요.</p>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">안녕하세요, {session.user?.name}님!</h1>
+            <p className="text-gray-600 dark:text-gray-300 mt-2">참여할 팀을 선택하거나 새로운 팀을 만들어보세요.</p>
           </div>
           <button
             onClick={() => {
@@ -126,27 +126,27 @@ export default function Dashboard() {
           {teams.map((team) => (
             <div
               key={team.id}
-              className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow cursor-pointer"
+              className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow cursor-pointer"
               onClick={() => selectTeam(team.id)}
             >
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">{team.name}</h3>
-              <p className="text-gray-600 mb-4">{team.description || "설명이 없습니다."}</p>
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">{team.name}</h3>
+              <p className="text-gray-600 dark:text-gray-300 mb-4">{team.description || "설명이 없습니다."}</p>
               <div className="flex justify-between items-center">
                 <div className="flex space-x-2">
                   <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                    team.role === "MANAGER" ? "bg-blue-100 text-blue-800" : "bg-green-100 text-green-800"
+                    team.role === "MANAGER" ? "bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200" : "bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200"
                   }`}>
                     {team.role === "MANAGER" ? "매니저" : "멤버"}
                   </span>
                   <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                    team.tier === "A" ? "bg-yellow-100 text-yellow-800" :
-                    team.tier === "B" ? "bg-orange-100 text-orange-800" :
-                    "bg-gray-100 text-gray-800"
+                    team.tier === "A" ? "bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200" :
+                    team.tier === "B" ? "bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200" :
+                    "bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200"
                   }`}>
                     티어 {team.tier}
                   </span>
                 </div>
-                <span className="text-sm text-gray-500">코드: {team.code}</span>
+                <span className="text-sm text-gray-500 dark:text-gray-400">코드: {team.code}</span>
               </div>
             </div>
           ))}
@@ -170,25 +170,25 @@ export default function Dashboard() {
         {/* 팀 생성 모달 */}
         {showCreateForm && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 w-full max-w-md">
-              <h3 className="text-lg font-semibold mb-4">새 팀 만들기</h3>
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md">
+              <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">새 팀 만들기</h3>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">팀 이름</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">팀 이름</label>
                   <input
                     type="text"
                     value={createTeamData.name}
                     onChange={(e) => setCreateTeamData({ ...createTeamData, name: e.target.value })}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     placeholder="팀 이름을 입력하세요"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">설명 (선택사항)</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">설명 (선택사항)</label>
                   <textarea
                     value={createTeamData.description}
                     onChange={(e) => setCreateTeamData({ ...createTeamData, description: e.target.value })}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     rows={3}
                     placeholder="팀 설명을 입력하세요"
                   />
@@ -204,7 +204,7 @@ export default function Dashboard() {
                 </button>
                 <button
                   onClick={() => setShowCreateForm(false)}
-                  className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 py-2 rounded-md font-medium"
+                  className="flex-1 bg-gray-300 dark:bg-gray-600 hover:bg-gray-400 dark:hover:bg-gray-500 text-gray-700 dark:text-gray-200 py-2 rounded-md font-medium"
                 >
                   취소
                 </button>
@@ -216,15 +216,15 @@ export default function Dashboard() {
         {/* 팀 참여 모달 */}
         {showJoinForm && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 w-full max-w-md">
-              <h3 className="text-lg font-semibold mb-4">팀 참여하기</h3>
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md">
+              <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">팀 참여하기</h3>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">팀 코드</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">팀 코드</label>
                 <input
                   type="text"
                   value={joinCode}
                   onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
                   placeholder="팀 코드를 입력하세요"
                   maxLength={6}
                 />
@@ -239,7 +239,7 @@ export default function Dashboard() {
                 </button>
                 <button
                   onClick={() => setShowJoinForm(false)}
-                  className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 py-2 rounded-md font-medium"
+                  className="flex-1 bg-gray-300 dark:bg-gray-600 hover:bg-gray-400 dark:hover:bg-gray-500 text-gray-700 dark:text-gray-200 py-2 rounded-md font-medium"
                 >
                   취소
                 </button>

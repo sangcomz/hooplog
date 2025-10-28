@@ -108,13 +108,13 @@ export default function MatchPage() {
   const getTierColor = (tier: string) => {
     switch (tier) {
       case "A":
-        return "bg-yellow-100 text-yellow-800"
+        return "bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200"
       case "B":
-        return "bg-orange-100 text-orange-800"
+        return "bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200"
       case "C":
-        return "bg-gray-100 text-gray-800"
+        return "bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200"
       default:
-        return "bg-gray-100 text-gray-800"
+        return "bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200"
     }
   }
 
@@ -142,14 +142,14 @@ export default function MatchPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="bg-white shadow-sm border-b">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <div className="bg-white dark:bg-gray-800 shadow-sm border-b dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">
             <div className="flex items-center space-x-4">
               <button
                 onClick={() => router.push(`/team/${teamId}/game/${gameId}`)}
-                className="text-gray-600 hover:text-gray-900 transition-colors"
+                className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors"
               >
                 ← 경기로 돌아가기
               </button>
@@ -158,12 +158,12 @@ export default function MatchPage() {
               {isManager && (
                 <button
                   onClick={() => router.push(`/team/${teamId}/settings`)}
-                  className="text-gray-600 hover:text-gray-900 transition-colors text-sm font-medium"
+                  className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors text-sm font-medium"
                 >
                   ⚙️ 팀 설정
                 </button>
               )}
-              <span className="text-sm text-gray-600">{session.user?.name}님</span>
+              <span className="text-sm text-gray-600 dark:text-gray-300">{session.user?.name}님</span>
               <button
                 onClick={() => {
                   window.location.href =
@@ -180,8 +180,8 @@ export default function MatchPage() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">팀 매칭</h1>
-          <div className="flex items-center space-x-4 text-sm text-gray-600">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">팀 매칭</h1>
+          <div className="flex items-center space-x-4 text-sm text-gray-600 dark:text-gray-300">
             <span className="font-medium">
               {matchData.playersPerTeam}대{matchData.playersPerTeam}
             </span>
@@ -193,17 +193,17 @@ export default function MatchPage() {
         </div>
 
         {isManager && (
-          <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">매칭 설정</h2>
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-8">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">매칭 설정</h2>
             <div className="flex items-end space-x-4">
               <div className="flex-1">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   팀 수
                 </label>
                 <select
                   value={newTeamCount}
                   onChange={(e) => setNewTeamCount(parseInt(e.target.value))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 >
                   <option value={2}>2팀</option>
                   <option value={3}>3팀</option>
@@ -223,12 +223,12 @@ export default function MatchPage() {
         )}
 
         {!matchData.teams ? (
-          <div className="bg-white rounded-lg shadow-md p-12 text-center">
-            <div className="text-gray-500 mb-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-12 text-center">
+            <div className="text-gray-500 dark:text-gray-400 mb-4">
               아직 팀 매칭이 생성되지 않았습니다.
             </div>
             {isManager && (
-              <p className="text-sm text-gray-400">
+              <p className="text-sm text-gray-400 dark:text-gray-500">
                 위의 설정에서 팀 수를 선택하고 팀 조합 버튼을 눌러주세요.
               </p>
             )}
@@ -238,26 +238,26 @@ export default function MatchPage() {
             {matchData.teams.map((team) => (
               <div
                 key={team.teamNumber}
-                className={`bg-white rounded-lg shadow-md border-l-4 ${getTeamColor(
+                className={`bg-white dark:bg-gray-800 rounded-lg shadow-md border-l-4 ${getTeamColor(
                   team.teamNumber
                 )} overflow-hidden`}
               >
-                <div className="px-6 py-4 border-b border-gray-200">
-                  <h3 className="text-xl font-bold text-gray-900">
+                <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-white">
                     팀 {team.teamNumber}
                   </h3>
-                  <p className="text-sm text-gray-500">{team.players.length}명</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">{team.players.length}명</p>
                 </div>
-                <div className="divide-y divide-gray-200">
+                <div className="divide-y divide-gray-200 dark:divide-gray-700">
                   {team.players.map((player) => (
                     <div key={player.id} className="px-6 py-3">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-2">
-                          <span className="font-medium text-gray-900">
+                          <span className="font-medium text-gray-900 dark:text-white">
                             {player.name}
                           </span>
                           {player.isGuest && (
-                            <span className="px-2 py-0.5 text-xs font-medium bg-purple-100 text-purple-800 rounded">
+                            <span className="px-2 py-0.5 text-xs font-medium bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 rounded">
                               게스트
                             </span>
                           )}

@@ -87,6 +87,8 @@ export default function GameDetailPage() {
   const [isManager, setIsManager] = useState(false)
   const [commentContent, setCommentContent] = useState("")
   const [postingComment, setPostingComment] = useState(false)
+  const [deletingGame, setDeletingGame] = useState(false)
+  const [maxQuarter, setMaxQuarter] = useState(1)
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -131,6 +133,12 @@ export default function GameDetailPage() {
       if (scoresResponse.ok) {
         const scoresData = await scoresResponse.json()
         setScores(scoresData)
+
+        // Calculate max quarter from existing scores
+        if (scoresData.length > 0) {
+          const maxQ = Math.max(...scoresData.map((s: Score) => s.quarter))
+          setMaxQuarter(maxQ)
+        }
       }
 
       if (commentsResponse.ok) {
@@ -293,6 +301,30 @@ export default function GameDetailPage() {
     }
   }
 
+  const deleteGame = async () => {
+    if (!confirm("정말로 이 경기를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.")) return
+
+    setDeletingGame(true)
+    try {
+      const response = await fetch(`/api/teams/${teamId}/games/${gameId}`, {
+        method: "DELETE",
+      })
+
+      if (response.ok) {
+        alert("경기가 삭제되었습니다.")
+        router.push(`/team/${teamId}`)
+      } else {
+        const error = await response.json()
+        alert(error.error || "경기 삭제에 실패했습니다.")
+      }
+    } catch (error) {
+      console.error("Failed to delete game:", error)
+      alert("경기 삭제에 실패했습니다.")
+    } finally {
+      setDeletingGame(false)
+    }
+  }
+
   const updateAttendance = async (newStatus: "attend" | "absent" | "pending") => {
     if (!session?.user?.id || updating) return
 
@@ -321,13 +353,13 @@ export default function GameDetailPage() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case "attend":
-        return "bg-green-100 text-green-800"
+        return "bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200"
       case "absent":
-        return "bg-red-100 text-red-800"
+        return "bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200"
       case "pending":
-        return "bg-yellow-100 text-yellow-800"
+        return "bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200"
       default:
-        return "bg-gray-100 text-gray-800"
+        return "bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200"
     }
   }
 
@@ -347,14 +379,35 @@ export default function GameDetailPage() {
   const getTierColor = (tier: string) => {
     switch (tier) {
       case "A":
-        return "bg-yellow-100 text-yellow-800"
+        return "bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200"
       case "B":
-        return "bg-orange-100 text-orange-800"
+        return "bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200"
       case "C":
-        return "bg-gray-100 text-gray-800"
+        return "bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200"
       default:
-        return "bg-gray-100 text-gray-800"
+        return "bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200"
     }
+  }
+
+  const generateMatchups = (teamCount: number): [number, number][] => {
+    if (teamCount === 2) {
+      return [[1, 2]]
+    } else if (teamCount === 3) {
+      return [[1, 2], [2, 3], [3, 1]]
+    } else {
+      // For 4+ teams, generate all possible matchups
+      const matchups: [number, number][] = []
+      for (let i = 1; i <= teamCount; i++) {
+        for (let j = i + 1; j <= teamCount; j++) {
+          matchups.push([i, j])
+        }
+      }
+      return matchups
+    }
+  }
+
+  const addQuarter = () => {
+    setMaxQuarter(maxQuarter + 1)
   }
 
   if (status === "loading" || loading) {
@@ -378,14 +431,14 @@ export default function GameDetailPage() {
   const pendingCount = game.attendances.filter((att) => att.status === "pending").length
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="bg-white shadow-sm border-b">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <div className="bg-white dark:bg-gray-800 shadow-sm border-b dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">
             <div className="flex items-center space-x-4">
               <button
                 onClick={() => router.push(`/team/${teamId}`)}
-                className="text-gray-600 hover:text-gray-900 transition-colors"
+                className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors"
               >
                 ← 팀으로 돌아가기
               </button>
@@ -394,12 +447,12 @@ export default function GameDetailPage() {
               {isManager && (
                 <button
                   onClick={() => router.push(`/team/${teamId}/settings`)}
-                  className="text-gray-600 hover:text-gray-900 transition-colors text-sm font-medium"
+                  className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors text-sm font-medium"
                 >
                   ⚙️ 팀 설정
                 </button>
               )}
-              <span className="text-sm text-gray-800">{session.user?.name}님</span>
+              <span className="text-sm text-gray-800 dark:text-gray-200">{session.user?.name}님</span>
               <button
                 onClick={() => {
                   window.location.href =
@@ -415,11 +468,22 @@ export default function GameDetailPage() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">경기 정보</h1>
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-8">
+          <div className="flex justify-between items-start mb-4">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">경기 정보</h1>
+            {isManager && (
+              <button
+                onClick={deleteGame}
+                disabled={deletingGame}
+                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm font-medium disabled:opacity-50"
+              >
+                {deletingGame ? "삭제 중..." : "경기 삭제"}
+              </button>
+            )}
+          </div>
           <div className="space-y-3">
             <div>
-              <span className="text-sm text-gray-700">날짜</span>
+              <span className="text-sm text-gray-700 dark:text-gray-300">날짜</span>
               <p className="text-lg font-medium">
                 {new Date(game.date).toLocaleString("ko-KR", {
                   year: "numeric",
@@ -432,27 +496,27 @@ export default function GameDetailPage() {
             </div>
             {game.location && (
               <div>
-                <span className="text-sm text-gray-700">장소</span>
-                <p className="text-lg font-medium">{game.location}</p>
+                <span className="text-sm text-gray-700 dark:text-gray-300">장소</span>
+                <p className="text-lg font-medium text-gray-900 dark:text-white">{game.location}</p>
               </div>
             )}
             {game.description && (
               <div>
-                <span className="text-sm text-gray-700">설명</span>
-                <p className="text-lg">{game.description}</p>
+                <span className="text-sm text-gray-700 dark:text-gray-300">설명</span>
+                <p className="text-lg text-gray-900 dark:text-white">{game.description}</p>
               </div>
             )}
             <div>
-              <span className="text-sm text-gray-700">생성자</span>
-              <p className="text-lg font-medium">{game.creator.name}</p>
+              <span className="text-sm text-gray-700 dark:text-gray-300">생성자</span>
+              <p className="text-lg font-medium text-gray-900 dark:text-white">{game.creator.name}</p>
             </div>
           </div>
         </div>
 
         {(!game.status || game.status === "pending") && (
           <>
-            <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-              <h2 className="text-xl font-bold text-gray-900 mb-4">내 출석 상태</h2>
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-8">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">내 출석 상태</h2>
               <div className="flex items-center space-x-4">
                 <button
                   onClick={() => updateAttendance("attend")}
@@ -491,25 +555,25 @@ export default function GameDetailPage() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-              <div className="text-center p-4 bg-white rounded-lg shadow-md">
-                <div className="text-3xl font-bold text-green-600">{attendCount}</div>
-                <div className="text-sm text-gray-800">참석</div>
+              <div className="text-center p-4 bg-white dark:bg-gray-800 rounded-lg shadow-md">
+                <div className="text-3xl font-bold text-green-600 dark:text-green-400">{attendCount}</div>
+                <div className="text-sm text-gray-800 dark:text-gray-200">참석</div>
               </div>
-              <div className="text-center p-4 bg-white rounded-lg shadow-md">
-                <div className="text-3xl font-bold text-red-600">{absentCount}</div>
-                <div className="text-sm text-gray-800">불참</div>
+              <div className="text-center p-4 bg-white dark:bg-gray-800 rounded-lg shadow-md">
+                <div className="text-3xl font-bold text-red-600 dark:text-red-400">{absentCount}</div>
+                <div className="text-sm text-gray-800 dark:text-gray-200">불참</div>
               </div>
-              <div className="text-center p-4 bg-white rounded-lg shadow-md">
-                <div className="text-3xl font-bold text-yellow-600">{pendingCount}</div>
-                <div className="text-sm text-gray-800">미정</div>
+              <div className="text-center p-4 bg-white dark:bg-gray-800 rounded-lg shadow-md">
+                <div className="text-3xl font-bold text-yellow-600 dark:text-yellow-400">{pendingCount}</div>
+                <div className="text-sm text-gray-800 dark:text-gray-200">미정</div>
               </div>
             </div>
           </>
         )}
 
-        <div className="bg-white rounded-lg shadow-md mb-8">
-          <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-            <h2 className="text-xl font-semibold text-gray-900">게스트 ({guests.length}명)</h2>
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md mb-8">
+          <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">게스트 ({guests.length}명)</h2>
             {isManager && (
               <button
                 onClick={() => setShowGuestModal(true)}
@@ -520,24 +584,24 @@ export default function GameDetailPage() {
             )}
           </div>
           {guests.length === 0 ? (
-            <div className="px-6 py-8 text-center text-gray-500">
+            <div className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
               등록된 게스트가 없습니다.
             </div>
           ) : (
-            <div className="divide-y divide-gray-200">
+            <div className="divide-y divide-gray-200 dark:divide-gray-700">
               {guests.map((guest) => (
                 <div key={guest.id} className="px-6 py-4 flex items-center justify-between">
                   <div className="flex items-center space-x-4">
                     <div className="flex-shrink-0">
-                      <div className="h-10 w-10 rounded-full bg-purple-300 flex items-center justify-center">
-                        <span className="text-sm font-medium text-purple-700">
+                      <div className="h-10 w-10 rounded-full bg-purple-300 dark:bg-purple-700 flex items-center justify-center">
+                        <span className="text-sm font-medium text-purple-700 dark:text-purple-200">
                           {guest.name.charAt(0).toUpperCase()}
                         </span>
                       </div>
                     </div>
                     <div>
-                      <div className="text-sm font-medium text-gray-900">{guest.name}</div>
-                      <div className="text-xs text-gray-700">게스트 (자동 참석)</div>
+                      <div className="text-sm font-medium text-gray-900 dark:text-white">{guest.name}</div>
+                      <div className="text-xs text-gray-700 dark:text-gray-300">게스트 (자동 참석)</div>
                     </div>
                   </div>
                   <div className="flex items-center space-x-2">
@@ -564,11 +628,11 @@ export default function GameDetailPage() {
         </div>
 
         {(!game.status || game.status === "pending") && (
-          <div className="bg-indigo-100 rounded-lg p-6 mb-8">
+          <div className="bg-indigo-100 dark:bg-indigo-900 rounded-lg p-6 mb-8">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-bold text-gray-900 mb-2">팀 매칭</h3>
-                <p className="text-sm text-gray-800">
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">팀 매칭</h3>
+                <p className="text-sm text-gray-800 dark:text-gray-200">
                   참석자를 기반으로 팀을 자동으로 조합합니다.
                 </p>
               </div>
@@ -593,61 +657,148 @@ export default function GameDetailPage() {
         )}
 
         {game.teams && isManager && (game.status === "started" || game.status === "finished") && (
-          <div className="bg-white rounded-lg shadow-md mb-8">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-xl font-semibold text-gray-900">쿼터별 스코어</h2>
-              <p className="text-sm text-gray-700 mt-1">
-                각 팀의 쿼터별 점수를 입력하세요. (매니저만 수정 가능)
-              </p>
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md mb-8">
+            <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+              <div className="flex justify-between items-start">
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900 dark:text-white">쿼터별 스코어</h2>
+                  <p className="text-sm text-gray-700 dark:text-gray-300 mt-1">
+                    각 매치의 쿼터별 점수를 입력하세요. (매니저만 수정 가능)
+                  </p>
+                </div>
+                <button
+                  onClick={addQuarter}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md text-sm font-medium"
+                >
+                  + 쿼터 추가
+                </button>
+              </div>
             </div>
             <div className="p-6">
               {(() => {
                 const teamResults = JSON.parse(game.teams)
+                const matchups = generateMatchups(teamResults.length)
+
                 return (
-                  <div className="space-y-6">
-                    {teamResults.map((team: any) => (
-                      <div key={team.teamNumber} className="border rounded-lg p-4">
-                        <h3 className="text-lg font-bold text-gray-900 mb-4">
-                          팀 {team.teamNumber}
-                        </h3>
-                        <div className="grid grid-cols-4 gap-4">
-                          {[1, 2, 3, 4].map((quarter) => {
-                            const scoreRecord = scores.find(
-                              (s) =>
-                                s.teamNumber === team.teamNumber && s.quarter === quarter
-                            )
-                            return (
-                              <div key={quarter}>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                  {quarter}쿼터
-                                </label>
-                                <input
-                                  type="number"
-                                  min="0"
-                                  value={scoreRecord?.score || 0}
-                                  onChange={(e) =>
-                                    updateScore(
-                                      team.teamNumber,
-                                      quarter,
-                                      parseInt(e.target.value) || 0
+                  <div className="space-y-8">
+                    {matchups.map(([team1Num, team2Num], matchIdx) => {
+                      const team1 = teamResults.find((t: any) => t.teamNumber === team1Num)
+                      const team2 = teamResults.find((t: any) => t.teamNumber === team2Num)
+
+                      const team1Total = scores
+                        .filter((s) => s.teamNumber === team1Num)
+                        .reduce((sum, s) => sum + s.score, 0)
+                      const team2Total = scores
+                        .filter((s) => s.teamNumber === team2Num)
+                        .reduce((sum, s) => sum + s.score, 0)
+
+                      return (
+                        <div key={matchIdx} className="border border-gray-200 dark:border-gray-700 rounded-lg p-6">
+                          <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">
+                            매치 {matchIdx + 1}: 팀 {team1Num} vs 팀 {team2Num}
+                          </h3>
+
+                          <div className="overflow-x-auto">
+                            <table className="w-full">
+                              <thead>
+                                <tr className="border-b border-gray-200 dark:border-gray-700">
+                                  <th className="text-left py-2 px-3 text-sm font-medium text-gray-700 dark:text-gray-300">팀</th>
+                                  {Array.from({ length: maxQuarter }, (_, i) => i + 1).map((quarter) => (
+                                    <th key={quarter} className="text-center py-2 px-3 text-sm font-medium text-gray-700 dark:text-gray-300">
+                                      Q{quarter}
+                                    </th>
+                                  ))}
+                                  <th className="text-right py-2 px-3 text-sm font-medium text-gray-700 dark:text-gray-300">총점</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {/* Team 1 Row */}
+                                <tr className="border-b border-gray-100 dark:border-gray-700">
+                                  <td className="py-3 px-3 font-medium text-gray-900 dark:text-white">
+                                    팀 {team1Num}
+                                  </td>
+                                  {Array.from({ length: maxQuarter }, (_, i) => i + 1).map((quarter) => {
+                                    const scoreRecord = scores.find(
+                                      (s) => s.teamNumber === team1Num && s.quarter === quarter
                                     )
-                                  }
-                                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                                />
-                              </div>
-                            )
-                          })}
+                                    return (
+                                      <td key={quarter} className="py-3 px-3">
+                                        <input
+                                          type="number"
+                                          min="0"
+                                          value={scoreRecord?.score || 0}
+                                          onChange={(e) =>
+                                            updateScore(
+                                              team1Num,
+                                              quarter,
+                                              parseInt(e.target.value) || 0
+                                            )
+                                          }
+                                          className="w-16 px-2 py-1 text-center border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                        />
+                                      </td>
+                                    )
+                                  })}
+                                  <td className="py-3 px-3 text-right font-bold text-gray-900 dark:text-white">
+                                    {team1Total}
+                                  </td>
+                                </tr>
+
+                                {/* Team 2 Row */}
+                                <tr>
+                                  <td className="py-3 px-3 font-medium text-gray-900 dark:text-white">
+                                    팀 {team2Num}
+                                  </td>
+                                  {Array.from({ length: maxQuarter }, (_, i) => i + 1).map((quarter) => {
+                                    const scoreRecord = scores.find(
+                                      (s) => s.teamNumber === team2Num && s.quarter === quarter
+                                    )
+                                    return (
+                                      <td key={quarter} className="py-3 px-3">
+                                        <input
+                                          type="number"
+                                          min="0"
+                                          value={scoreRecord?.score || 0}
+                                          onChange={(e) =>
+                                            updateScore(
+                                              team2Num,
+                                              quarter,
+                                              parseInt(e.target.value) || 0
+                                            )
+                                          }
+                                          className="w-16 px-2 py-1 text-center border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                        />
+                                      </td>
+                                    )
+                                  })}
+                                  <td className="py-3 px-3 text-right font-bold text-gray-900 dark:text-white">
+                                    {team2Total}
+                                  </td>
+                                </tr>
+                              </tbody>
+                            </table>
+                          </div>
+
+                          <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                            <div className="text-center">
+                              <span className={`text-lg font-bold ${
+                                team1Total > team2Total
+                                  ? 'text-green-600 dark:text-green-400'
+                                  : team1Total < team2Total
+                                  ? 'text-red-600 dark:text-red-400'
+                                  : 'text-yellow-600 dark:text-yellow-400'
+                              }`}>
+                                {team1Total > team2Total
+                                  ? `팀 ${team1Num} 승리`
+                                  : team1Total < team2Total
+                                  ? `팀 ${team2Num} 승리`
+                                  : '무승부'}
+                              </span>
+                            </div>
+                          </div>
                         </div>
-                        <div className="mt-4 text-right">
-                          <span className="text-lg font-bold text-gray-900">
-                            총점:{" "}
-                            {scores
-                              .filter((s) => s.teamNumber === team.teamNumber)
-                              .reduce((sum, s) => sum + s.score, 0)}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 )
               })()}
@@ -655,9 +806,9 @@ export default function GameDetailPage() {
           </div>
         )}
 
-        <div className="bg-white rounded-lg shadow-md mb-8">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-xl font-semibold text-gray-900">댓글 ({comments.length})</h2>
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md mb-8">
+          <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">댓글 ({comments.length})</h2>
           </div>
           <div className="p-6">
             <div className="mb-6">
@@ -665,7 +816,7 @@ export default function GameDetailPage() {
                 value={commentContent}
                 onChange={(e) => setCommentContent(e.target.value)}
                 placeholder="댓글을 입력하세요..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 rows={3}
               />
               <div className="mt-2 flex justify-end">
@@ -681,12 +832,12 @@ export default function GameDetailPage() {
 
             <div className="space-y-4">
               {comments.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
+                <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                   아직 댓글이 없습니다. 첫 번째 댓글을 작성해보세요!
                 </div>
               ) : (
                 comments.map((comment) => (
-                  <div key={comment.id} className="border-b border-gray-200 pb-4">
+                  <div key={comment.id} className="border-b border-gray-200 dark:border-gray-700 pb-4">
                     <div className="flex items-start justify-between">
                       <div className="flex items-center space-x-3">
                         {comment.user.image ? (
@@ -696,17 +847,17 @@ export default function GameDetailPage() {
                             alt={comment.user.name || ""}
                           />
                         ) : (
-                          <div className="h-8 w-8 rounded-full bg-gray-300 flex items-center justify-center">
-                            <span className="text-xs font-medium text-gray-700">
+                          <div className="h-8 w-8 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center">
+                            <span className="text-xs font-medium text-gray-700 dark:text-gray-200">
                               {comment.user.name?.charAt(0).toUpperCase() || "?"}
                             </span>
                             </div>
                         )}
                         <div>
-                          <div className="text-sm font-medium text-gray-900">
+                          <div className="text-sm font-medium text-gray-900 dark:text-white">
                             {comment.user.name}
                           </div>
-                          <div className="text-xs text-gray-700">
+                          <div className="text-xs text-gray-700 dark:text-gray-300">
                             {new Date(comment.createdAt).toLocaleString("ko-KR")}
                           </div>
                         </div>
@@ -714,13 +865,13 @@ export default function GameDetailPage() {
                       {(comment.userId === session?.user?.id || isManager) && (
                         <button
                           onClick={() => deleteComment(comment.id)}
-                          className="text-red-600 hover:text-red-800 text-sm"
+                          className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 text-sm"
                         >
                           삭제
                         </button>
                       )}
                     </div>
-                    <div className="mt-2 text-sm text-gray-700 ml-11">
+                    <div className="mt-2 text-sm text-gray-700 dark:text-gray-300 ml-11">
                       {comment.content}
                     </div>
                   </div>
@@ -730,13 +881,13 @@ export default function GameDetailPage() {
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow-md">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-xl font-semibold text-gray-900">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md">
+          <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
               출석 현황 ({game.attendances.length}명)
             </h2>
           </div>
-          <div className="divide-y divide-gray-200">
+          <div className="divide-y divide-gray-200 dark:divide-gray-700">
             {game.attendances.map((attendance) => (
               <div key={attendance.id} className="px-6 py-4 flex items-center justify-between">
                 <div className="flex items-center space-x-4">
@@ -748,18 +899,18 @@ export default function GameDetailPage() {
                         alt={attendance.user.name || ""}
                       />
                     ) : (
-                      <div className="h-10 w-10 rounded-full bg-gray-300 flex items-center justify-center">
-                        <span className="text-sm font-medium text-gray-700">
+                      <div className="h-10 w-10 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center">
+                        <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
                           {attendance.user.name?.charAt(0).toUpperCase() || "?"}
                         </span>
                       </div>
                     )}
                   </div>
                   <div>
-                    <div className="text-sm font-medium text-gray-900">
+                    <div className="text-sm font-medium text-gray-900 dark:text-white">
                       {attendance.user.name}
                     </div>
-                    <div className="text-sm text-gray-700">{attendance.user.email}</div>
+                    <div className="text-sm text-gray-700 dark:text-gray-300">{attendance.user.email}</div>
                   </div>
                 </div>
                 <div className="flex items-center space-x-2">
@@ -786,30 +937,30 @@ export default function GameDetailPage() {
 
       {showGuestModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">게스트 추가</h2>
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">게스트 추가</h2>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   이름 *
                 </label>
                 <input
                   type="text"
                   value={guestForm.name}
                   onChange={(e) => setGuestForm({ ...guestForm, name: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
                   placeholder="게스트 이름 입력"
                   required
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   티어 *
                 </label>
                 <select
                   value={guestForm.tier}
                   onChange={(e) => setGuestForm({ ...guestForm, tier: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
                 >
                   <option value="A">티어 A</option>
                   <option value="B">티어 B</option>
@@ -823,7 +974,7 @@ export default function GameDetailPage() {
                   setShowGuestModal(false)
                   setGuestForm({ name: "", tier: "C" })
                 }}
-                className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900"
+                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
                 disabled={addingGuest}
               >
                 취소

@@ -1,26 +1,256 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+@theme {
+  /* Font families */
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  /* Custom colors using CSS variables */
+  --color-bg-primary: var(--bg-primary);
+  --color-bg-secondary: var(--bg-secondary);
+  --color-bg-tertiary: var(--bg-tertiary);
+
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-tertiary: var(--text-tertiary);
+  --color-text-muted: var(--text-muted);
+
+  --color-border-primary: var(--border-primary);
+  --color-border-secondary: var(--border-secondary);
+
+  --color-success-bg: var(--success-bg);
+  --color-success-text: var(--success-text);
+  --color-success-solid: var(--success-solid);
+
+  --color-error-bg: var(--error-bg);
+  --color-error-text: var(--error-text);
+  --color-error-solid: var(--error-solid);
+
+  --color-warning-bg: var(--warning-bg);
+  --color-warning-text: var(--warning-text);
+  --color-warning-solid: var(--warning-solid);
+
+  --color-tier-a-bg: var(--tier-a-bg);
+  --color-tier-a-text: var(--tier-a-text);
+  --color-tier-a-border: var(--tier-a-border);
+
+  --color-tier-b-bg: var(--tier-b-bg);
+  --color-tier-b-text: var(--tier-b-text);
+  --color-tier-b-border: var(--tier-b-border);
+
+  --color-tier-c-bg: var(--tier-c-bg);
+  --color-tier-c-text: var(--tier-c-text);
+  --color-tier-c-border: var(--tier-c-border);
+
+  --color-role-manager-bg: var(--role-manager-bg);
+  --color-role-manager-text: var(--role-manager-text);
+
+  --color-role-member-bg: var(--role-member-bg);
+  --color-role-member-text: var(--role-member-text);
+
+  --color-primary-bg: var(--primary-bg);
+  --color-primary-text: var(--primary-text);
+  --color-primary-solid: var(--primary-solid);
+  --color-primary-solid-hover: var(--primary-solid-hover);
+
+  --color-purple-bg: var(--purple-bg);
+  --color-purple-text: var(--purple-text);
+  --color-purple-solid: var(--purple-solid);
+}
+
+:root {
+  /* Background colors */
+  --bg-primary: #ffffff;
+  --bg-secondary: #f9fafb;
+  --bg-tertiary: #f3f4f6;
+
+  /* Text colors */
+  --text-primary: #111827;
+  --text-secondary: #374151;
+  --text-tertiary: #6b7280;
+  --text-muted: #9ca3af;
+
+  /* Border colors */
+  --border-primary: #e5e7eb;
+  --border-secondary: #d1d5db;
+
+  /* Status colors - Green (Attend) */
+  --success-bg: #dcfce7;
+  --success-text: #166534;
+  --success-solid: #16a34a;
+
+  /* Status colors - Red (Absent) */
+  --error-bg: #fee2e2;
+  --error-text: #991b1b;
+  --error-solid: #dc2626;
+
+  /* Status colors - Yellow (Pending) */
+  --warning-bg: #fef9c3;
+  --warning-text: #854d0e;
+  --warning-solid: #eab308;
+
+  /* Tier colors */
+  --tier-a-bg: #fef3c7;
+  --tier-a-text: #92400e;
+  --tier-a-border: #fde047;
+
+  --tier-b-bg: #fed7aa;
+  --tier-b-text: #9a3412;
+  --tier-b-border: #fb923c;
+
+  --tier-c-bg: #e5e7eb;
+  --tier-c-text: #374151;
+  --tier-c-border: #9ca3af;
+
+  /* Role colors */
+  --role-manager-bg: #dbeafe;
+  --role-manager-text: #1e40af;
+
+  --role-member-bg: #dcfce7;
+  --role-member-text: #166534;
+
+  /* Primary accent colors */
+  --primary-bg: #eef2ff;
+  --primary-text: #3730a3;
+  --primary-solid: #6366f1;
+  --primary-solid-hover: #4f46e5;
+
+  /* Purple accent (for guests) */
+  --purple-bg: #f3e8ff;
+  --purple-text: #6b21a8;
+  --purple-solid: #9333ea;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    /* Background colors */
+    --bg-primary: #111827;
+    --bg-secondary: #1f2937;
+    --bg-tertiary: #374151;
+
+    /* Text colors */
+    --text-primary: #f9fafb;
+    --text-secondary: #e5e7eb;
+    --text-tertiary: #d1d5db;
+    --text-muted: #9ca3af;
+
+    /* Border colors */
+    --border-primary: #374151;
+    --border-secondary: #4b5563;
+
+    /* Status colors - Green (Attend) */
+    --success-bg: #14532d;
+    --success-text: #86efac;
+    --success-solid: #22c55e;
+
+    /* Status colors - Red (Absent) */
+    --error-bg: #7f1d1d;
+    --error-text: #fca5a5;
+    --error-solid: #ef4444;
+
+    /* Status colors - Yellow (Pending) */
+    --warning-bg: #713f12;
+    --warning-text: #fde047;
+    --warning-solid: #facc15;
+
+    /* Tier colors */
+    --tier-a-bg: #713f12;
+    --tier-a-text: #fde047;
+    --tier-a-border: #ca8a04;
+
+    --tier-b-bg: #7c2d12;
+    --tier-b-text: #fdba74;
+    --tier-b-border: #ea580c;
+
+    --tier-c-bg: #374151;
+    --tier-c-text: #d1d5db;
+    --tier-c-border: #6b7280;
+
+    /* Role colors */
+    --role-manager-bg: #1e3a8a;
+    --role-manager-text: #93c5fd;
+
+    --role-member-bg: #14532d;
+    --role-member-text: #86efac;
+
+    /* Primary accent colors */
+    --primary-bg: #312e81;
+    --primary-text: #c7d2fe;
+    --primary-solid: #6366f1;
+    --primary-solid-hover: #818cf8;
+
+    /* Purple accent (for guests) */
+    --purple-bg: #581c87;
+    --purple-text: #e9d5ff;
+    --purple-solid: #a855f7;
   }
 }
 
+/* Dark mode class-based override */
+.dark {
+  /* Background colors */
+  --bg-primary: #111827;
+  --bg-secondary: #1f2937;
+  --bg-tertiary: #374151;
+
+  /* Text colors */
+  --text-primary: #f9fafb;
+  --text-secondary: #e5e7eb;
+  --text-tertiary: #d1d5db;
+  --text-muted: #9ca3af;
+
+  /* Border colors */
+  --border-primary: #374151;
+  --border-secondary: #4b5563;
+
+  /* Status colors - Green (Attend) */
+  --success-bg: #14532d;
+  --success-text: #86efac;
+  --success-solid: #22c55e;
+
+  /* Status colors - Red (Absent) */
+  --error-bg: #7f1d1d;
+  --error-text: #fca5a5;
+  --error-solid: #ef4444;
+
+  /* Status colors - Yellow (Pending) */
+  --warning-bg: #713f12;
+  --warning-text: #fde047;
+  --warning-solid: #facc15;
+
+  /* Tier colors */
+  --tier-a-bg: #713f12;
+  --tier-a-text: #fde047;
+  --tier-a-border: #ca8a04;
+
+  --tier-b-bg: #7c2d12;
+  --tier-b-text: #fdba74;
+  --tier-b-border: #ea580c;
+
+  --tier-c-bg: #374151;
+  --tier-c-text: #d1d5db;
+  --tier-c-border: #6b7280;
+
+  /* Role colors */
+  --role-manager-bg: #1e3a8a;
+  --role-manager-text: #93c5fd;
+
+  --role-member-bg: #14532d;
+  --role-member-text: #86efac;
+
+  /* Primary accent colors */
+  --primary-bg: #312e81;
+  --primary-text: #c7d2fe;
+  --primary-solid: #6366f1;
+  --primary-solid-hover: #818cf8;
+
+  /* Purple accent (for guests) */
+  --purple-bg: #581c87;
+  --purple-text: #e9d5ff;
+  --purple-solid: #a855f7;
+}
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
 }

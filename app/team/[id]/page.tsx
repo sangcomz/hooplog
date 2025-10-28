@@ -3,6 +3,8 @@
 import { useSession } from "@/lib/auth-client"
 import { useEffect, useState } from "react"
 import { useRouter, useParams } from "next/navigation"
+import { getTierColor, getRoleColor } from "@/app/utils/colors"
+import { ThemeToggle } from "@/app/components/ThemeToggle"
 
 interface TeamMember {
   id: string
@@ -126,19 +128,6 @@ export default function TeamPage() {
     (m) => m.user.id === session?.user?.id
   )?.role === "MANAGER"
 
-  const getRoleColor = (role: string) => {
-    return role === "MANAGER" ? "bg-blue-100 text-blue-800" : "bg-green-100 text-green-800"
-  }
-
-  const getTierColor = (tier: string) => {
-    switch (tier) {
-      case "A": return "bg-yellow-100 text-yellow-800"
-      case "B": return "bg-orange-100 text-orange-800"
-      case "C": return "bg-gray-100 text-gray-800"
-      default: return "bg-gray-100 text-gray-800"
-    }
-  }
-
   if (status === "loading" || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -152,14 +141,14 @@ export default function TeamPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="bg-white shadow-sm border-b">
+    <div className="min-h-screen bg-bg-secondary">
+      <div className="bg-bg-primary shadow-sm border-b border-border-primary">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">
             <div className="flex items-center space-x-4">
               <button
                 onClick={() => router.push("/dashboard")}
-                className="text-gray-600 hover:text-gray-900 transition-colors"
+                className="text-text-tertiary hover:text-text-primary transition-colors"
               >
                 ← 대시보드로 돌아가기
               </button>
@@ -168,19 +157,20 @@ export default function TeamPage() {
               {isManager && (
                 <button
                   onClick={() => router.push(`/team/${teamId}/settings`)}
-                  className="text-gray-600 hover:text-gray-900 transition-colors text-sm font-medium"
+                  className="text-text-tertiary hover:text-text-primary transition-colors text-sm font-medium"
                 >
                   ⚙️ 팀 설정
                 </button>
               )}
-              <span className="text-sm text-gray-800">
+              <ThemeToggle />
+              <span className="text-sm text-text-secondary">
                 {session.user?.name}님
               </span>
               <button
                 onClick={() => {
                   window.location.href = "/api/auth/signout?callbackUrl=" + encodeURIComponent("/")
                 }}
-                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm font-medium"
+                className="bg-error-solid hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm font-medium"
               >
                 로그아웃
               </button>
@@ -192,23 +182,23 @@ export default function TeamPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
           <div className="flex items-center justify-between mb-4">
-            <h1 className="text-3xl font-bold text-gray-900">{team.name}</h1>
-            <div className="text-sm text-gray-700">
+            <h1 className="text-3xl font-bold text-text-primary">{team.name}</h1>
+            <div className="text-sm text-text-tertiary">
               팀 코드: <span className="font-mono font-medium">{team.code}</span>
             </div>
           </div>
           {team.description && (
-            <p className="text-gray-800">{team.description}</p>
+            <p className="text-text-secondary">{team.description}</p>
           )}
         </div>
 
-        <div className="bg-white rounded-lg shadow-md">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-xl font-semibold text-gray-900">
+        <div className="bg-bg-primary rounded-lg shadow-md">
+          <div className="px-6 py-4 border-b border-border-primary">
+            <h2 className="text-xl font-semibold text-text-primary">
               팀 멤버 ({team.members.length}명)
             </h2>
           </div>
-          <div className="divide-y divide-gray-200">
+          <div className="divide-y divide-border-primary">
             {team.members.map((member) => (
               <div key={member.id} className="px-6 py-4 flex items-center justify-between">
                 <div className="flex items-center space-x-4">
@@ -220,18 +210,18 @@ export default function TeamPage() {
                         alt={member.user.name || ""}
                       />
                     ) : (
-                      <div className="h-10 w-10 rounded-full bg-gray-300 flex items-center justify-center">
-                        <span className="text-sm font-medium text-gray-700">
+                      <div className="h-10 w-10 rounded-full bg-bg-tertiary flex items-center justify-center">
+                        <span className="text-sm font-medium text-text-secondary">
                           {member.user.name?.charAt(0).toUpperCase() || "?"}
                         </span>
                       </div>
                     )}
                   </div>
                   <div>
-                    <div className="text-sm font-medium text-gray-900">
+                    <div className="text-sm font-medium text-text-primary">
                       {member.user.name}
                     </div>
-                    <div className="text-sm text-gray-700">
+                    <div className="text-sm text-text-tertiary">
                       {member.user.email}
                     </div>
                   </div>
@@ -249,57 +239,57 @@ export default function TeamPage() {
           </div>
         </div>
 
-        <div className="mt-8 bg-white rounded-lg shadow-md p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">팀 정보</h3>
+        <div className="mt-8 bg-bg-primary rounded-lg shadow-md p-6">
+          <h3 className="text-lg font-semibold text-text-primary mb-4">팀 정보</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="text-center p-4 bg-gray-50 rounded-lg">
-              <div className="text-2xl font-bold text-indigo-600">
+            <div className="text-center p-4 bg-bg-secondary rounded-lg">
+              <div className="text-2xl font-bold text-primary-solid">
                 {team.members.filter(m => m.role === "MANAGER").length}
               </div>
-              <div className="text-sm text-gray-800">매니저</div>
+              <div className="text-sm text-text-secondary">매니저</div>
             </div>
-            <div className="text-center p-4 bg-gray-50 rounded-lg">
-              <div className="text-2xl font-bold text-green-600">
+            <div className="text-center p-4 bg-bg-secondary rounded-lg">
+              <div className="text-2xl font-bold text-success-solid">
                 {team.members.filter(m => m.role === "MEMBER").length}
               </div>
-              <div className="text-sm text-gray-800">멤버</div>
+              <div className="text-sm text-text-secondary">멤버</div>
             </div>
-            <div className="text-center p-4 bg-gray-50 rounded-lg">
-              <div className="text-2xl font-bold text-orange-600">
+            <div className="text-center p-4 bg-bg-secondary rounded-lg">
+              <div className="text-2xl font-bold text-warning-solid">
                 {team.members.length}
               </div>
-              <div className="text-sm text-gray-800">전체 인원</div>
+              <div className="text-sm text-text-secondary">전체 인원</div>
             </div>
           </div>
         </div>
 
-        <div className="mt-8 bg-white rounded-lg shadow-md">
-          <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-            <h2 className="text-xl font-semibold text-gray-900">경기 일정</h2>
+        <div className="mt-8 bg-bg-primary rounded-lg shadow-md">
+          <div className="px-6 py-4 border-b border-border-primary flex items-center justify-between">
+            <h2 className="text-xl font-semibold text-text-primary">경기 일정</h2>
             {isManager && (
               <button
                 onClick={() => setShowGameModal(true)}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md text-sm font-medium"
+                className="bg-primary-solid hover:bg-primary-solid-hover text-white px-4 py-2 rounded-md text-sm font-medium"
               >
                 경기 생성
               </button>
             )}
           </div>
           {games.length === 0 ? (
-            <div className="px-6 py-12 text-center text-gray-500">
+            <div className="px-6 py-12 text-center text-text-muted">
               아직 생성된 경기가 없습니다.
             </div>
           ) : (
-            <div className="divide-y divide-gray-200">
+            <div className="divide-y divide-border-primary">
               {games.map((game) => (
                 <div
                   key={game.id}
                   onClick={() => router.push(`/team/${teamId}/game/${game.id}`)}
-                  className="px-6 py-4 hover:bg-gray-50 cursor-pointer transition-colors"
+                  className="px-6 py-4 hover:bg-bg-secondary cursor-pointer transition-colors"
                 >
                   <div className="flex items-center justify-between">
                     <div>
-                      <div className="text-sm font-medium text-gray-900">
+                      <div className="text-sm font-medium text-text-primary">
                         {new Date(game.date).toLocaleString("ko-KR", {
                           year: "numeric",
                           month: "long",
@@ -309,17 +299,17 @@ export default function TeamPage() {
                         })}
                       </div>
                       {game.location && (
-                        <div className="text-sm text-gray-700 mt-1">
+                        <div className="text-sm text-text-tertiary mt-1">
                           장소: {game.location}
                         </div>
                       )}
                       {game.description && (
-                        <div className="text-sm text-gray-700 mt-1">
+                        <div className="text-sm text-text-tertiary mt-1">
                           {game.description}
                         </div>
                       )}
                     </div>
-                    <div className="text-sm text-gray-600">
+                    <div className="text-sm text-text-muted">
                       생성자: {game.creator.name}
                     </div>
                   </div>
@@ -332,11 +322,11 @@ export default function TeamPage() {
 
       {showGameModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">경기 생성</h2>
+          <div className="bg-bg-primary rounded-lg p-6 w-full max-w-md">
+            <h2 className="text-xl font-bold text-text-primary mb-4">경기 생성</h2>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-text-secondary mb-1">
                   날짜 및 시간 *
                 </label>
                 <input
@@ -345,12 +335,12 @@ export default function TeamPage() {
                   onChange={(e) =>
                     setGameForm({ ...gameForm, date: e.target.value })
                   }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 border border-border-primary rounded-md focus:outline-none focus:ring-2 focus:ring-primary-solid bg-bg-primary text-text-primary"
                   required
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-text-secondary mb-1">
                   장소
                 </label>
                 <input
@@ -359,12 +349,12 @@ export default function TeamPage() {
                   onChange={(e) =>
                     setGameForm({ ...gameForm, location: e.target.value })
                   }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 border border-border-primary rounded-md focus:outline-none focus:ring-2 focus:ring-primary-solid bg-bg-primary text-text-primary"
                   placeholder="경기 장소 입력"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-text-secondary mb-1">
                   설명
                 </label>
                 <textarea
@@ -372,13 +362,13 @@ export default function TeamPage() {
                   onChange={(e) =>
                     setGameForm({ ...gameForm, description: e.target.value })
                   }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 border border-border-primary rounded-md focus:outline-none focus:ring-2 focus:ring-primary-solid bg-bg-primary text-text-primary"
                   placeholder="경기에 대한 설명 입력"
                   rows={3}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-text-secondary mb-1">
                   팀 수 *
                 </label>
                 <select
@@ -386,7 +376,7 @@ export default function TeamPage() {
                   onChange={(e) =>
                     setGameForm({ ...gameForm, teamCount: parseInt(e.target.value) })
                   }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 border border-border-primary rounded-md focus:outline-none focus:ring-2 focus:ring-primary-solid bg-bg-primary text-text-primary"
                 >
                   <option value={2}>2팀</option>
                   <option value={3}>3팀</option>
@@ -395,7 +385,7 @@ export default function TeamPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-text-secondary mb-1">
                   팀당 인원 *
                 </label>
                 <select
@@ -403,7 +393,7 @@ export default function TeamPage() {
                   onChange={(e) =>
                     setGameForm({ ...gameForm, playersPerTeam: parseInt(e.target.value) })
                   }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 border border-border-primary rounded-md focus:outline-none focus:ring-2 focus:ring-primary-solid bg-bg-primary text-text-primary"
                 >
                   <option value={3}>3대3</option>
                   <option value={4}>4대4</option>
@@ -418,7 +408,7 @@ export default function TeamPage() {
                   setShowGameModal(false)
                   setGameForm({ date: "", location: "", description: "", teamCount: 2, playersPerTeam: 5 })
                 }}
-                className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900"
+                className="px-4 py-2 text-sm font-medium text-text-secondary hover:text-text-primary"
                 disabled={creatingGame}
               >
                 취소
@@ -426,7 +416,7 @@ export default function TeamPage() {
               <button
                 onClick={createGame}
                 disabled={!gameForm.date || creatingGame}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md text-sm font-medium disabled:opacity-50"
+                className="bg-primary-solid hover:bg-primary-solid-hover text-white px-4 py-2 rounded-md text-sm font-medium disabled:opacity-50"
               >
                 {creatingGame ? "생성 중..." : "생성"}
               </button>
