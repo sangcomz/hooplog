@@ -49,8 +49,11 @@ const runMigrate = async () => {
         try {
           await client.execute(statement)
         } catch (error: any) {
-          // Ignore "already exists" errors
-          if (error.message?.includes("already exists")) {
+          // Ignore "already exists" and "duplicate column" errors
+          if (
+            error.message?.includes("already exists") ||
+            error.message?.includes("duplicate column")
+          ) {
             console.log(`  Skipping (already exists): ${statement.substring(0, 50)}...`)
           } else {
             throw error
