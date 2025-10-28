@@ -137,6 +137,9 @@ export const games = sqliteTable("Game", {
   date: integer("date", { mode: "timestamp_ms" }).notNull(),
   location: text("location"),
   description: text("description"),
+  teamCount: integer("teamCount").notNull().default(2),
+  playersPerTeam: integer("playersPerTeam").notNull().default(5),
+  teams: text("teams", { mode: "json" }),
   createdAt: integer("createdAt", { mode: "timestamp_ms" })
     .notNull()
     .$defaultFn(() => new Date()),
@@ -175,3 +178,18 @@ export const attendances = sqliteTable(
     ),
   })
 )
+
+// Guests table
+export const guests = sqliteTable("Guest", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => createId()),
+  gameId: text("gameId")
+    .notNull()
+    .references(() => games.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  tier: text("tier", { enum: memberTierEnum }).notNull().default("C"),
+  createdAt: integer("createdAt", { mode: "timestamp_ms" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+})

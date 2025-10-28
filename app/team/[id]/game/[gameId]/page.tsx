@@ -27,6 +27,14 @@ interface Attendance {
   member: Member
 }
 
+interface Guest {
+  id: string
+  gameId: string
+  name: string
+  tier: string
+  createdAt: number
+}
+
 interface Game {
   id: string
   teamId: string
@@ -45,8 +53,13 @@ export default function GameDetailPage() {
   const teamId = params.id as string
   const gameId = params.gameId as string
   const [game, setGame] = useState<Game | null>(null)
+  const [guests, setGuests] = useState<Guest[]>([])
   const [loading, setLoading] = useState(true)
   const [updating, setUpdating] = useState(false)
+  const [showGuestModal, setShowGuestModal] = useState(false)
+  const [guestForm, setGuestForm] = useState({ name: "", tier: "C" })
+  const [addingGuest, setAddingGuest] = useState(false)
+  const [isManager, setIsManager] = useState(false)
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -61,17 +74,85 @@ export default function GameDetailPage() {
 
   const fetchGameDetails = async () => {
     try {
-      const response = await fetch(`/api/teams/${teamId}/games/${gameId}`)
-      if (response.ok) {
-        const gameData = await response.json()
+      const [gameResponse, guestsResponse, teamResponse] = await Promise.all([
+        fetch(`/api/teams/${teamId}/games/${gameId}`),
+        fetch(`/api/teams/${teamId}/games/${gameId}/guests`),
+        fetch(`/api/teams/${teamId}`),
+      ])
+
+      if (gameResponse.ok) {
+        const gameData = await gameResponse.json()
         setGame(gameData)
-      } else if (response.status === 404) {
+      } else if (gameResponse.status === 404) {
         router.push(`/team/${teamId}`)
+      }
+
+      if (guestsResponse.ok) {
+        const guestsData = await guestsResponse.json()
+        setGuests(guestsData)
+      }
+
+      if (teamResponse.ok) {
+        const teamData = await teamResponse.json()
+        const member = teamData.members.find((m: any) => m.user.id === session?.user?.id)
+        setIsManager(member?.role === "MANAGER")
       }
     } catch (error) {
       console.error("Failed to fetch game details:", error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const addGuest = async () => {
+    if (!guestForm.name || addingGuest) return
+
+    setAddingGuest(true)
+    try {
+      const response = await fetch(`/api/teams/${teamId}/games/${gameId}/guests`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(guestForm),
+      })
+
+      if (response.ok) {
+        await fetchGameDetails()
+        setShowGuestModal(false)
+        setGuestForm({ name: "", tier: "C" })
+      } else {
+        const error = await response.json()
+        alert(error.error || "Failed to add guest")
+      }
+    } catch (error) {
+      console.error("Failed to add guest:", error)
+      alert("Failed to add guest")
+    } finally {
+      setAddingGuest(false)
+    }
+  }
+
+  const deleteGuest = async (guestId: string) => {
+    if (!confirm("이 게스트를 삭제하시겠습니까?")) return
+
+    try {
+      const response = await fetch(
+        `/api/teams/${teamId}/games/${gameId}/guests?guestId=${guestId}`,
+        {
+          method: "DELETE",
+        }
+      )
+
+      if (response.ok) {
+        await fetchGameDetails()
+      } else {
+        const error = await response.json()
+        alert(error.error || "Failed to delete guest")
+      }
+    } catch (error) {
+      console.error("Failed to delete guest:", error)
+      alert("Failed to delete guest")
     }
   }
 
@@ -277,6 +358,79 @@ export default function GameDetailPage() {
           </div>
         </div>
 
+        <div className="bg-white rounded-lg shadow-md mb-8">
+          <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+            <h2 className="text-xl font-semibold text-gray-900">게스트 ({guests.length}명)</h2>
+            {isManager && (
+              <button
+                onClick={() => setShowGuestModal(true)}
+                className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-md text-sm font-medium"
+              >
+                게스트 추가
+              </button>
+            )}
+          </div>
+          {guests.length === 0 ? (
+            <div className="px-6 py-8 text-center text-gray-500">
+              등록된 게스트가 없습니다.
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-200">
+              {guests.map((guest) => (
+                <div key={guest.id} className="px-6 py-4 flex items-center justify-between">
+                  <div className="flex items-center space-x-4">
+                    <div className="flex-shrink-0">
+                      <div className="h-10 w-10 rounded-full bg-purple-300 flex items-center justify-center">
+                        <span className="text-sm font-medium text-purple-700">
+                          {guest.name.charAt(0).toUpperCase()}
+                        </span>
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-sm font-medium text-gray-900">{guest.name}</div>
+                      <div className="text-xs text-gray-500">게스트 (자동 참석)</div>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <span
+                      className={`px-3 py-1 rounded-full text-xs font-medium ${getTierColor(
+                        guest.tier
+                      )}`}
+                    >
+                      티어 {guest.tier}
+                    </span>
+                    {isManager && (
+                      <button
+                        onClick={() => deleteGuest(guest.id)}
+                        className="text-red-600 hover:text-red-800 text-sm"
+                      >
+                        삭제
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="bg-indigo-100 rounded-lg p-6 mb-8">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-bold text-gray-900 mb-2">팀 매칭</h3>
+              <p className="text-sm text-gray-600">
+                참석자를 기반으로 팀을 자동으로 조합합니다.
+              </p>
+            </div>
+            <button
+              onClick={() => router.push(`/team/${teamId}/game/${gameId}/match`)}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-md font-medium"
+            >
+              팀 매칭 보기
+            </button>
+          </div>
+        </div>
+
         <div className="bg-white rounded-lg shadow-md">
           <div className="px-6 py-4 border-b border-gray-200">
             <h2 className="text-xl font-semibold text-gray-900">
@@ -330,6 +484,62 @@ export default function GameDetailPage() {
           </div>
         </div>
       </div>
+
+      {showGuestModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">게스트 추가</h2>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  이름 *
+                </label>
+                <input
+                  type="text"
+                  value={guestForm.name}
+                  onChange={(e) => setGuestForm({ ...guestForm, name: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  placeholder="게스트 이름 입력"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  티어 *
+                </label>
+                <select
+                  value={guestForm.tier}
+                  onChange={(e) => setGuestForm({ ...guestForm, tier: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                >
+                  <option value="A">티어 A</option>
+                  <option value="B">티어 B</option>
+                  <option value="C">티어 C</option>
+                </select>
+              </div>
+            </div>
+            <div className="mt-6 flex items-center justify-end space-x-3">
+              <button
+                onClick={() => {
+                  setShowGuestModal(false)
+                  setGuestForm({ name: "", tier: "C" })
+                }}
+                className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900"
+                disabled={addingGuest}
+              >
+                취소
+              </button>
+              <button
+                onClick={addGuest}
+                disabled={!guestForm.name || addingGuest}
+                className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-md text-sm font-medium disabled:opacity-50"
+              >
+                {addingGuest ? "추가 중..." : "추가"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

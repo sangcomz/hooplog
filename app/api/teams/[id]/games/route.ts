@@ -74,7 +74,7 @@ export async function POST(
 
   try {
     const { id: teamId } = await params
-    const { date, location, description } = await request.json()
+    const { date, location, description, teamCount, playersPerTeam } = await request.json()
 
     if (!date) {
       return NextResponse.json({ error: "Date is required" }, { status: 400 })
@@ -106,6 +106,8 @@ export async function POST(
         date: new Date(date),
         location: location || null,
         description: description || null,
+        teamCount: teamCount || 2,
+        playersPerTeam: playersPerTeam || 5,
       })
       .returning()
 

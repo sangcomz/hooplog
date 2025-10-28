@@ -15,6 +15,20 @@
       "when": 1761647475879,
       "tag": "0001_broad_ezekiel_stane",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1761648105833,
+      "tag": "0002_cheerful_enchantress",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1761648625958,
+      "tag": "0003_wakeful_old_lace",
+      "breakpoints": true
     }
   ]
 }

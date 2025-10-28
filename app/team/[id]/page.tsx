@@ -53,6 +53,8 @@ export default function TeamPage() {
     date: "",
     location: "",
     description: "",
+    teamCount: 2,
+    playersPerTeam: 5,
   })
 
   useEffect(() => {
@@ -107,7 +109,7 @@ export default function TeamPage() {
       if (response.ok) {
         await fetchTeamDetails()
         setShowGameModal(false)
-        setGameForm({ date: "", location: "", description: "" })
+        setGameForm({ date: "", location: "", description: "", teamCount: 2, playersPerTeam: 5 })
       } else {
         const error = await response.json()
         alert(error.error || "Failed to create game")
@@ -367,12 +369,46 @@ export default function TeamPage() {
                   rows={3}
                 />
               </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  팀 수 *
+                </label>
+                <select
+                  value={gameForm.teamCount}
+                  onChange={(e) =>
+                    setGameForm({ ...gameForm, teamCount: parseInt(e.target.value) })
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value={2}>2팀</option>
+                  <option value={3}>3팀</option>
+                  <option value={4}>4팀</option>
+                  <option value={5}>5팀</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  팀당 인원 *
+                </label>
+                <select
+                  value={gameForm.playersPerTeam}
+                  onChange={(e) =>
+                    setGameForm({ ...gameForm, playersPerTeam: parseInt(e.target.value) })
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value={3}>3대3</option>
+                  <option value={4}>4대4</option>
+                  <option value={5}>5대5</option>
+                  <option value={6}>6대6</option>
+                </select>
+              </div>
             </div>
             <div className="mt-6 flex items-center justify-end space-x-3">
               <button
                 onClick={() => {
                   setShowGameModal(false)
-                  setGameForm({ date: "", location: "", description: "" })
+                  setGameForm({ date: "", location: "", description: "", teamCount: 2, playersPerTeam: 5 })
                 }}
                 className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900"
                 disabled={creatingGame}

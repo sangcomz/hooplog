@@ -1,0 +1,1 @@
+ALTER TABLE `Game` ADD `playersPerTeam` integer DEFAULT 5 NOT NULL;
