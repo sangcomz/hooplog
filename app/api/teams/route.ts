@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
-import { prisma } from "@/lib/prisma"
+import { db, teamMembers, teams } from "@/lib/db"
+import { eq } from "drizzle-orm"
 
 export async function GET(request: NextRequest) {
   const session = await auth()
@@ -10,19 +11,22 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const teams = await prisma.teamMember.findMany({
-      where: { userId: session.user.id },
-      include: {
-        team: true,
-      },
-    })
+    const userTeams = await db
+      .select({
+        id: teams.id,
+        name: teams.name,
+        code: teams.code,
+        description: teams.description,
+        createdAt: teams.createdAt,
+        updatedAt: teams.updatedAt,
+        role: teamMembers.role,
+        tier: teamMembers.tier,
+      })
+      .from(teamMembers)
+      .innerJoin(teams, eq(teamMembers.teamId, teams.id))
+      .where(eq(teamMembers.userId, session.user.id))
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return NextResponse.json(teams.map((tm: any) => ({
-      ...tm.team,
-      role: tm.role,
-      tier: tm.tier,
-    })))
+    return NextResponse.json(userTeams)
   } catch (error) {
     console.error("Failed to fetch teams:", error)
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
@@ -45,25 +49,29 @@ export async function POST(request: NextRequest) {
 
     const code = Math.random().toString(36).substring(2, 8).toUpperCase()
 
-    const team = await prisma.team.create({
-      data: {
+    const [team] = await db
+      .insert(teams)
+      .values({
         name,
         description: description || null,
         code,
-        members: {
-          create: {
-            userId: session.user.id,
-            role: "MANAGER",
-            tier: "A",
-          },
-        },
-      },
-      include: {
-        members: true,
-      },
+      })
+      .returning()
+
+    await db.insert(teamMembers).values({
+      userId: session.user.id,
+      teamId: team.id,
+      role: "MANAGER",
+      tier: "A",
     })
 
-    return NextResponse.json(team)
+    const teamWithMembers = await db
+      .select()
+      .from(teams)
+      .where(eq(teams.id, team.id))
+      .limit(1)
+
+    return NextResponse.json(teamWithMembers[0])
   } catch (error) {
     console.error("Failed to create team:", error)
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
