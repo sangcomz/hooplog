@@ -24,6 +24,56 @@ function shuffleArray<T>(array: T[]): T[] {
   return shuffled
 }
 
+function distributePlayersByTier(players: Player[], teamCount: number): TeamResult[] {
+  // Group players by tier
+  const tierGroups: { [key: string]: Player[] } = {
+    A: [],
+    B: [],
+    C: [],
+  }
+
+  players.forEach((player) => {
+    if (tierGroups[player.tier]) {
+      tierGroups[player.tier].push(player)
+    } else {
+      // If tier is not A, B, or C, treat as C
+      tierGroups.C.push(player)
+    }
+  })
+
+  // Shuffle each tier group
+  const shuffledA = shuffleArray(tierGroups.A)
+  const shuffledB = shuffleArray(tierGroups.B)
+  const shuffledC = shuffleArray(tierGroups.C)
+
+  // Initialize teams
+  const teams: TeamResult[] = Array.from({ length: teamCount }, (_, i) => ({
+    teamNumber: i + 1,
+    players: [],
+  }))
+
+  // Distribute players by tier round-robin
+  // First distribute A tier
+  shuffledA.forEach((player, index) => {
+    const teamIndex = index % teamCount
+    teams[teamIndex].players.push(player)
+  })
+
+  // Then distribute B tier
+  shuffledB.forEach((player, index) => {
+    const teamIndex = index % teamCount
+    teams[teamIndex].players.push(player)
+  })
+
+  // Finally distribute C tier
+  shuffledC.forEach((player, index) => {
+    const teamIndex = index % teamCount
+    teams[teamIndex].players.push(player)
+  })
+
+  return teams
+}
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string; gameId: string }> }
@@ -132,19 +182,8 @@ export async function POST(
       )
     }
 
-    // Shuffle players randomly
-    const shuffledPlayers = shuffleArray(players)
-
-    // Distribute players into teams
-    const teams: TeamResult[] = Array.from({ length: teamCount }, (_, i) => ({
-      teamNumber: i + 1,
-      players: [],
-    }))
-
-    shuffledPlayers.forEach((player, index) => {
-      const teamIndex = index % teamCount
-      teams[teamIndex].players.push(player)
-    })
+    // Distribute players into teams with tier balancing
+    const teams = distributePlayersByTier(players, teamCount)
 
     // Save the team result to the database
     await db

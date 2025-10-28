@@ -165,6 +165,14 @@ export default function TeamPage() {
               </button>
             </div>
             <div className="flex items-center space-x-4">
+              {isManager && (
+                <button
+                  onClick={() => router.push(`/team/${teamId}/settings`)}
+                  className="text-gray-600 hover:text-gray-900 transition-colors text-sm font-medium"
+                >
+                  ⚙️ 팀 설정
+                </button>
+              )}
               <span className="text-sm text-gray-600">
                 {session.user?.name}님
               </span>
