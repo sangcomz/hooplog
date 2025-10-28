@@ -4,9 +4,11 @@ import { createId } from "@paralleldrive/cuid2"
 // Enums
 export const memberRoleEnum = ["MANAGER", "MEMBER"] as const
 export const memberTierEnum = ["A", "B", "C"] as const
+export const attendanceStatusEnum = ["attend", "absent", "pending"] as const
 
 export type MemberRole = typeof memberRoleEnum[number]
 export type MemberTier = typeof memberTierEnum[number]
+export type AttendanceStatus = typeof attendanceStatusEnum[number]
 
 // Users table
 export const users = sqliteTable("User", {
@@ -117,6 +119,59 @@ export const teamMembers = sqliteTable(
     userIdTeamIdUnique: unique("TeamMember_userId_teamId_key").on(
       tm.userId,
       tm.teamId
+    ),
+  })
+)
+
+// Games table
+export const games = sqliteTable("Game", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => createId()),
+  teamId: text("teamId")
+    .notNull()
+    .references(() => teams.id, { onDelete: "cascade" }),
+  creatorId: text("creatorId")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  date: integer("date", { mode: "timestamp_ms" }).notNull(),
+  location: text("location"),
+  description: text("description"),
+  createdAt: integer("createdAt", { mode: "timestamp_ms" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+  updatedAt: integer("updatedAt", { mode: "timestamp_ms" })
+    .notNull()
+    .$defaultFn(() => new Date())
+    .$onUpdate(() => new Date()),
+})
+
+// Attendances table
+export const attendances = sqliteTable(
+  "Attendance",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => createId()),
+    gameId: text("gameId")
+      .notNull()
+      .references(() => games.id, { onDelete: "cascade" }),
+    userId: text("userId")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    status: text("status", { enum: attendanceStatusEnum }).notNull().default("pending"),
+    createdAt: integer("createdAt", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    updatedAt: integer("updatedAt", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date())
+      .$onUpdate(() => new Date()),
+  },
+  (att) => ({
+    gameIdUserIdUnique: unique("Attendance_gameId_userId_key").on(
+      att.gameId,
+      att.userId
     ),
   })
 )

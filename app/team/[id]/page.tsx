@@ -24,13 +24,36 @@ interface Team {
   members: TeamMember[]
 }
 
+interface Game {
+  id: string
+  teamId: string
+  creatorId: string
+  date: number
+  location?: string
+  description?: string
+  creator: {
+    id: string
+    name: string
+    email: string
+    image?: string
+  }
+}
+
 export default function TeamPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const params = useParams()
   const teamId = params.id as string
   const [team, setTeam] = useState<Team | null>(null)
+  const [games, setGames] = useState<Game[]>([])
   const [loading, setLoading] = useState(true)
+  const [showGameModal, setShowGameModal] = useState(false)
+  const [creatingGame, setCreatingGame] = useState(false)
+  const [gameForm, setGameForm] = useState({
+    date: "",
+    location: "",
+    description: "",
+  })
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -45,12 +68,21 @@ export default function TeamPage() {
 
   const fetchTeamDetails = async () => {
     try {
-      const response = await fetch(`/api/teams/${teamId}`)
-      if (response.ok) {
-        const teamData = await response.json()
+      const [teamResponse, gamesResponse] = await Promise.all([
+        fetch(`/api/teams/${teamId}`),
+        fetch(`/api/teams/${teamId}/games`),
+      ])
+
+      if (teamResponse.ok) {
+        const teamData = await teamResponse.json()
         setTeam(teamData)
-      } else if (response.status === 404) {
+      } else if (teamResponse.status === 404) {
         router.push("/dashboard")
+      }
+
+      if (gamesResponse.ok) {
+        const gamesData = await gamesResponse.json()
+        setGames(gamesData)
       }
     } catch (error) {
       console.error("Failed to fetch team details:", error)
@@ -58,6 +90,39 @@ export default function TeamPage() {
       setLoading(false)
     }
   }
+
+  const createGame = async () => {
+    if (!gameForm.date || creatingGame) return
+
+    setCreatingGame(true)
+    try {
+      const response = await fetch(`/api/teams/${teamId}/games`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(gameForm),
+      })
+
+      if (response.ok) {
+        await fetchTeamDetails()
+        setShowGameModal(false)
+        setGameForm({ date: "", location: "", description: "" })
+      } else {
+        const error = await response.json()
+        alert(error.error || "Failed to create game")
+      }
+    } catch (error) {
+      console.error("Failed to create game:", error)
+      alert("Failed to create game")
+    } finally {
+      setCreatingGame(false)
+    }
+  }
+
+  const isManager = team?.members.find(
+    (m) => m.user.id === session?.user?.id
+  )?.role === "MANAGER"
 
   const getRoleColor = (role: string) => {
     return role === "MANAGER" ? "bg-blue-100 text-blue-800" : "bg-green-100 text-green-800"
@@ -197,7 +262,134 @@ export default function TeamPage() {
             </div>
           </div>
         </div>
+
+        <div className="mt-8 bg-white rounded-lg shadow-md">
+          <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+            <h2 className="text-xl font-semibold text-gray-900">경기 일정</h2>
+            {isManager && (
+              <button
+                onClick={() => setShowGameModal(true)}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md text-sm font-medium"
+              >
+                경기 생성
+              </button>
+            )}
+          </div>
+          {games.length === 0 ? (
+            <div className="px-6 py-12 text-center text-gray-500">
+              아직 생성된 경기가 없습니다.
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-200">
+              {games.map((game) => (
+                <div
+                  key={game.id}
+                  onClick={() => router.push(`/team/${teamId}/game/${game.id}`)}
+                  className="px-6 py-4 hover:bg-gray-50 cursor-pointer transition-colors"
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-sm font-medium text-gray-900">
+                        {new Date(game.date).toLocaleString("ko-KR", {
+                          year: "numeric",
+                          month: "long",
+                          day: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </div>
+                      {game.location && (
+                        <div className="text-sm text-gray-500 mt-1">
+                          장소: {game.location}
+                        </div>
+                      )}
+                      {game.description && (
+                        <div className="text-sm text-gray-500 mt-1">
+                          {game.description}
+                        </div>
+                      )}
+                    </div>
+                    <div className="text-sm text-gray-400">
+                      생성자: {game.creator.name}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
+
+      {showGameModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">경기 생성</h2>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  날짜 및 시간 *
+                </label>
+                <input
+                  type="datetime-local"
+                  value={gameForm.date}
+                  onChange={(e) =>
+                    setGameForm({ ...gameForm, date: e.target.value })
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  장소
+                </label>
+                <input
+                  type="text"
+                  value={gameForm.location}
+                  onChange={(e) =>
+                    setGameForm({ ...gameForm, location: e.target.value })
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  placeholder="경기 장소 입력"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  설명
+                </label>
+                <textarea
+                  value={gameForm.description}
+                  onChange={(e) =>
+                    setGameForm({ ...gameForm, description: e.target.value })
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  placeholder="경기에 대한 설명 입력"
+                  rows={3}
+                />
+              </div>
+            </div>
+            <div className="mt-6 flex items-center justify-end space-x-3">
+              <button
+                onClick={() => {
+                  setShowGameModal(false)
+                  setGameForm({ date: "", location: "", description: "" })
+                }}
+                className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900"
+                disabled={creatingGame}
+              >
+                취소
+              </button>
+              <button
+                onClick={createGame}
+                disabled={!gameForm.date || creatingGame}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md text-sm font-medium disabled:opacity-50"
+              >
+                {creatingGame ? "생성 중..." : "생성"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
