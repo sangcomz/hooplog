@@ -3,6 +3,7 @@
 import { useSession } from "@/lib/auth-client"
 import { useEffect, useState } from "react"
 import { useRouter, useParams } from "next/navigation"
+import { useTheme } from "@/app/components/ThemeProvider"
 
 interface User {
   id: string
@@ -73,6 +74,7 @@ export default function GameDetailPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const params = useParams()
+  const { theme, setTheme } = useTheme()
   const teamId = params.id as string
   const gameId = params.gameId as string
   const [game, setGame] = useState<Game | null>(null)
@@ -410,6 +412,10 @@ export default function GameDetailPage() {
     setMaxQuarter(maxQuarter + 1)
   }
 
+  const toggleTheme = () => {
+    setTheme(theme === "dark" ? "light" : theme === "light" ? "dark" : "dark")
+  }
+
   if (status === "loading" || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -452,6 +458,21 @@ export default function GameDetailPage() {
                   ⚙️ 팀 설정
                 </button>
               )}
+              <button
+                onClick={toggleTheme}
+                className="p-2 rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                aria-label="테마 전환"
+              >
+                {theme === "dark" ? (
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                  </svg>
+                ) : (
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                  </svg>
+                )}
+              </button>
               <span className="text-sm text-gray-800 dark:text-gray-200">{session.user?.name}님</span>
               <button
                 onClick={() => {
@@ -512,6 +533,53 @@ export default function GameDetailPage() {
             </div>
           </div>
         </div>
+
+        {game.teams && (game.status === "started" || game.status === "finished") && (
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-8">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">팀 구성</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {(() => {
+                const teamResults = JSON.parse(game.teams)
+                return teamResults.map((team: any) => (
+                  <div
+                    key={team.teamNumber}
+                    className="border border-gray-200 dark:border-gray-700 rounded-lg p-4"
+                  >
+                    <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-3">
+                      팀 {team.teamNumber}
+                    </h3>
+                    <div className="space-y-2">
+                      {team.players.map((player: any) => (
+                        <div
+                          key={player.id}
+                          className="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-700 last:border-0"
+                        >
+                          <div className="flex items-center space-x-2">
+                            <span className="text-sm font-medium text-gray-900 dark:text-white">
+                              {player.name}
+                            </span>
+                            {player.isGuest && (
+                              <span className="px-2 py-0.5 text-xs font-medium bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 rounded">
+                                게스트
+                              </span>
+                            )}
+                          </div>
+                          <span
+                            className={`px-2 py-1 text-xs font-medium rounded ${getTierColor(
+                              player.tier
+                            )}`}
+                          >
+                            티어 {player.tier}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))
+              })()}
+            </div>
+          </div>
+        )}
 
         {(!game.status || game.status === "pending") && (
           <>

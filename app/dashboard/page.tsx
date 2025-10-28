@@ -3,6 +3,7 @@
 import { useSession } from "@/lib/auth-client"
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
+import { useTheme } from "@/app/components/ThemeProvider"
 
 interface Team {
   id: string
@@ -16,12 +17,17 @@ interface Team {
 export default function Dashboard() {
   const { data: session, status } = useSession()
   const router = useRouter()
+  const { theme, setTheme } = useTheme()
   const [teams, setTeams] = useState<Team[]>([])
   const [loading, setLoading] = useState(true)
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [showJoinForm, setShowJoinForm] = useState(false)
   const [createTeamData, setCreateTeamData] = useState({ name: "", description: "" })
   const [joinCode, setJoinCode] = useState("")
+
+  const toggleTheme = () => {
+    setTheme(theme === "dark" ? "light" : theme === "light" ? "dark" : "dark")
+  }
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -112,14 +118,31 @@ export default function Dashboard() {
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white">안녕하세요, {session.user?.name}님!</h1>
             <p className="text-gray-600 dark:text-gray-300 mt-2">참여할 팀을 선택하거나 새로운 팀을 만들어보세요.</p>
           </div>
-          <button
-            onClick={() => {
-              window.location.href = "/api/auth/signout?callbackUrl=" + encodeURIComponent("/")
-            }}
-            className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm font-medium"
-          >
-            로그아웃
-          </button>
+          <div className="flex items-center space-x-3">
+            <button
+              onClick={toggleTheme}
+              className="p-2 rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              aria-label="테마 전환"
+            >
+              {theme === "dark" ? (
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+              ) : (
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                </svg>
+              )}
+            </button>
+            <button
+              onClick={() => {
+                window.location.href = "/api/auth/signout?callbackUrl=" + encodeURIComponent("/")
+              }}
+              className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm font-medium"
+            >
+              로그아웃
+            </button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
