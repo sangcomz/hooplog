@@ -29,21 +29,28 @@ export default function RootLayout({
         <script
           dangerouslySetInnerHTML={{
             __html: `
-              try {
-                const theme = localStorage.getItem('theme') || 'system';
-                const root = document.documentElement;
+              (function() {
+                try {
+                  const theme = localStorage.getItem('theme') || 'system';
+                  const root = document.documentElement;
 
-                if (theme === 'dark') {
-                  root.classList.add('dark');
-                } else if (theme === 'light') {
-                  root.classList.remove('dark');
-                } else {
-                  const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-                  if (systemTheme === 'dark') {
+                  if (theme === 'dark') {
                     root.classList.add('dark');
+                  } else if (theme === 'light') {
+                    root.classList.remove('dark');
+                  } else {
+                    // system
+                    const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                    if (isDark) {
+                      root.classList.add('dark');
+                    } else {
+                      root.classList.remove('dark');
+                    }
                   }
+                } catch (e) {
+                  console.error('Theme initialization error:', e);
                 }
-              } catch (e) {}
+              })();
             `,
           }}
         />

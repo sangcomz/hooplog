@@ -27,20 +27,27 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const root = window.document.documentElement
 
-    // Remove both classes first
-    root.classList.remove("light", "dark")
+    // Remove dark class
+    root.classList.remove("dark")
+
+    let finalTheme: "light" | "dark" = "light"
 
     if (theme === "system") {
       const systemTheme = window.matchMedia("(prefers-color-scheme: dark)")
         .matches
         ? "dark"
         : "light"
-      root.classList.add(systemTheme)
-      setActualTheme(systemTheme)
+      finalTheme = systemTheme
     } else {
-      root.classList.add(theme)
-      setActualTheme(theme)
+      finalTheme = theme
     }
+
+    // Only add dark class if theme is dark
+    if (finalTheme === "dark") {
+      root.classList.add("dark")
+    }
+
+    setActualTheme(finalTheme)
 
     // Save to localStorage
     localStorage.setItem("theme", theme)
@@ -53,8 +60,13 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)")
     const handleChange = () => {
       const systemTheme = mediaQuery.matches ? "dark" : "light"
-      window.document.documentElement.classList.remove("light", "dark")
-      window.document.documentElement.classList.add(systemTheme)
+      const root = window.document.documentElement
+
+      root.classList.remove("dark")
+      if (systemTheme === "dark") {
+        root.classList.add("dark")
+      }
+
       setActualTheme(systemTheme)
     }
 
