@@ -35,6 +35,26 @@ interface Guest {
   createdAt: number
 }
 
+interface Score {
+  id: string
+  gameId: string
+  teamNumber: number
+  quarter: number
+  score: number
+  createdAt: number
+  updatedAt: number
+}
+
+interface Comment {
+  id: string
+  gameId: string
+  userId: string
+  content: string
+  createdAt: number
+  updatedAt: number
+  user: User
+}
+
 interface Game {
   id: string
   teamId: string
@@ -44,6 +64,9 @@ interface Game {
   description?: string
   creator: User
   attendances: Attendance[]
+  teamCount?: number
+  teams?: string
+  status?: "pending" | "started" | "finished"
 }
 
 export default function GameDetailPage() {
@@ -54,12 +77,16 @@ export default function GameDetailPage() {
   const gameId = params.gameId as string
   const [game, setGame] = useState<Game | null>(null)
   const [guests, setGuests] = useState<Guest[]>([])
+  const [scores, setScores] = useState<Score[]>([])
+  const [comments, setComments] = useState<Comment[]>([])
   const [loading, setLoading] = useState(true)
   const [updating, setUpdating] = useState(false)
   const [showGuestModal, setShowGuestModal] = useState(false)
   const [guestForm, setGuestForm] = useState({ name: "", tier: "C" })
   const [addingGuest, setAddingGuest] = useState(false)
   const [isManager, setIsManager] = useState(false)
+  const [commentContent, setCommentContent] = useState("")
+  const [postingComment, setPostingComment] = useState(false)
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -74,11 +101,14 @@ export default function GameDetailPage() {
 
   const fetchGameDetails = async () => {
     try {
-      const [gameResponse, guestsResponse, teamResponse] = await Promise.all([
-        fetch(`/api/teams/${teamId}/games/${gameId}`),
-        fetch(`/api/teams/${teamId}/games/${gameId}/guests`),
-        fetch(`/api/teams/${teamId}`),
-      ])
+      const [gameResponse, guestsResponse, teamResponse, scoresResponse, commentsResponse] =
+        await Promise.all([
+          fetch(`/api/teams/${teamId}/games/${gameId}`),
+          fetch(`/api/teams/${teamId}/games/${gameId}/guests`),
+          fetch(`/api/teams/${teamId}`),
+          fetch(`/api/teams/${teamId}/games/${gameId}/scores`),
+          fetch(`/api/teams/${teamId}/games/${gameId}/comments`),
+        ])
 
       if (gameResponse.ok) {
         const gameData = await gameResponse.json()
@@ -96,6 +126,16 @@ export default function GameDetailPage() {
         const teamData = await teamResponse.json()
         const member = teamData.members.find((m: any) => m.user.id === session?.user?.id)
         setIsManager(member?.role === "MANAGER")
+      }
+
+      if (scoresResponse.ok) {
+        const scoresData = await scoresResponse.json()
+        setScores(scoresData)
+      }
+
+      if (commentsResponse.ok) {
+        const commentsData = await commentsResponse.json()
+        setComments(commentsData)
       }
     } catch (error) {
       console.error("Failed to fetch game details:", error)
@@ -153,6 +193,103 @@ export default function GameDetailPage() {
     } catch (error) {
       console.error("Failed to delete guest:", error)
       alert("Failed to delete guest")
+    }
+  }
+
+  const updateScore = async (teamNumber: number, quarter: number, score: number) => {
+    try {
+      const response = await fetch(`/api/teams/${teamId}/games/${gameId}/scores`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ teamNumber, quarter, score }),
+      })
+
+      if (response.ok) {
+        await fetchGameDetails()
+      } else {
+        const error = await response.json()
+        alert(error.error || "Failed to update score")
+      }
+    } catch (error) {
+      console.error("Failed to update score:", error)
+      alert("Failed to update score")
+    }
+  }
+
+  const postComment = async () => {
+    if (!commentContent.trim() || postingComment) return
+
+    setPostingComment(true)
+    try {
+      const response = await fetch(`/api/teams/${teamId}/games/${gameId}/comments`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ content: commentContent }),
+      })
+
+      if (response.ok) {
+        setCommentContent("")
+        await fetchGameDetails()
+      } else {
+        const error = await response.json()
+        alert(error.error || "Failed to post comment")
+      }
+    } catch (error) {
+      console.error("Failed to post comment:", error)
+      alert("Failed to post comment")
+    } finally {
+      setPostingComment(false)
+    }
+  }
+
+  const deleteComment = async (commentId: string) => {
+    if (!confirm("이 댓글을 삭제하시겠습니까?")) return
+
+    try {
+      const response = await fetch(
+        `/api/teams/${teamId}/games/${gameId}/comments?commentId=${commentId}`,
+        {
+          method: "DELETE",
+        }
+      )
+
+      if (response.ok) {
+        await fetchGameDetails()
+      } else {
+        const error = await response.json()
+        alert(error.error || "Failed to delete comment")
+      }
+    } catch (error) {
+      console.error("Failed to delete comment:", error)
+      alert("Failed to delete comment")
+    }
+  }
+
+  const startGame = async () => {
+    if (!confirm("경기를 시작하시겠습니까? 시작하면 출석 현황이 잠기고 점수 기록이 가능해집니다.")) return
+
+    try {
+      const response = await fetch(`/api/teams/${teamId}/games/${gameId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ status: "started" }),
+      })
+
+      if (response.ok) {
+        await fetchGameDetails()
+      } else {
+        const error = await response.json()
+        alert(error.error || "Failed to start game")
+      }
+    } catch (error) {
+      console.error("Failed to start game:", error)
+      alert("Failed to start game")
     }
   }
 
@@ -312,59 +449,63 @@ export default function GameDetailPage() {
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">내 출석 상태</h2>
-          <div className="flex items-center space-x-4">
-            <button
-              onClick={() => updateAttendance("attend")}
-              disabled={updating || currentUserAttendance?.status === "attend"}
-              className={`px-6 py-3 rounded-lg font-medium transition-colors ${
-                currentUserAttendance?.status === "attend"
-                  ? "bg-green-600 text-white"
-                  : "bg-green-100 text-green-800 hover:bg-green-200"
-              } disabled:opacity-50`}
-            >
-              참석
-            </button>
-            <button
-              onClick={() => updateAttendance("absent")}
-              disabled={updating || currentUserAttendance?.status === "absent"}
-              className={`px-6 py-3 rounded-lg font-medium transition-colors ${
-                currentUserAttendance?.status === "absent"
-                  ? "bg-red-600 text-white"
-                  : "bg-red-100 text-red-800 hover:bg-red-200"
-              } disabled:opacity-50`}
-            >
-              불참
-            </button>
-            <button
-              onClick={() => updateAttendance("pending")}
-              disabled={updating || currentUserAttendance?.status === "pending"}
-              className={`px-6 py-3 rounded-lg font-medium transition-colors ${
-                currentUserAttendance?.status === "pending"
-                  ? "bg-yellow-600 text-white"
-                  : "bg-yellow-100 text-yellow-800 hover:bg-yellow-200"
-              } disabled:opacity-50`}
-            >
-              미정
-            </button>
-          </div>
-        </div>
+        {(!game.status || game.status === "pending") && (
+          <>
+            <div className="bg-white rounded-lg shadow-md p-6 mb-8">
+              <h2 className="text-xl font-bold text-gray-900 mb-4">내 출석 상태</h2>
+              <div className="flex items-center space-x-4">
+                <button
+                  onClick={() => updateAttendance("attend")}
+                  disabled={updating || currentUserAttendance?.status === "attend"}
+                  className={`px-6 py-3 rounded-lg font-medium transition-colors ${
+                    currentUserAttendance?.status === "attend"
+                      ? "bg-green-600 text-white"
+                      : "bg-green-100 text-green-800 hover:bg-green-200"
+                  } disabled:opacity-50`}
+                >
+                  참석
+                </button>
+                <button
+                  onClick={() => updateAttendance("absent")}
+                  disabled={updating || currentUserAttendance?.status === "absent"}
+                  className={`px-6 py-3 rounded-lg font-medium transition-colors ${
+                    currentUserAttendance?.status === "absent"
+                      ? "bg-red-600 text-white"
+                      : "bg-red-100 text-red-800 hover:bg-red-200"
+                  } disabled:opacity-50`}
+                >
+                  불참
+                </button>
+                <button
+                  onClick={() => updateAttendance("pending")}
+                  disabled={updating || currentUserAttendance?.status === "pending"}
+                  className={`px-6 py-3 rounded-lg font-medium transition-colors ${
+                    currentUserAttendance?.status === "pending"
+                      ? "bg-yellow-600 text-white"
+                      : "bg-yellow-100 text-yellow-800 hover:bg-yellow-200"
+                  } disabled:opacity-50`}
+                >
+                  미정
+                </button>
+              </div>
+            </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <div className="text-center p-4 bg-white rounded-lg shadow-md">
-            <div className="text-3xl font-bold text-green-600">{attendCount}</div>
-            <div className="text-sm text-gray-600">참석</div>
-          </div>
-          <div className="text-center p-4 bg-white rounded-lg shadow-md">
-            <div className="text-3xl font-bold text-red-600">{absentCount}</div>
-            <div className="text-sm text-gray-600">불참</div>
-          </div>
-          <div className="text-center p-4 bg-white rounded-lg shadow-md">
-            <div className="text-3xl font-bold text-yellow-600">{pendingCount}</div>
-            <div className="text-sm text-gray-600">미정</div>
-          </div>
-        </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+              <div className="text-center p-4 bg-white rounded-lg shadow-md">
+                <div className="text-3xl font-bold text-green-600">{attendCount}</div>
+                <div className="text-sm text-gray-600">참석</div>
+              </div>
+              <div className="text-center p-4 bg-white rounded-lg shadow-md">
+                <div className="text-3xl font-bold text-red-600">{absentCount}</div>
+                <div className="text-sm text-gray-600">불참</div>
+              </div>
+              <div className="text-center p-4 bg-white rounded-lg shadow-md">
+                <div className="text-3xl font-bold text-yellow-600">{pendingCount}</div>
+                <div className="text-sm text-gray-600">미정</div>
+              </div>
+            </div>
+          </>
+        )}
 
         <div className="bg-white rounded-lg shadow-md mb-8">
           <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
@@ -422,20 +563,170 @@ export default function GameDetailPage() {
           )}
         </div>
 
-        <div className="bg-indigo-100 rounded-lg p-6 mb-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-bold text-gray-900 mb-2">팀 매칭</h3>
-              <p className="text-sm text-gray-600">
-                참석자를 기반으로 팀을 자동으로 조합합니다.
+        {(!game.status || game.status === "pending") && (
+          <div className="bg-indigo-100 rounded-lg p-6 mb-8">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900 mb-2">팀 매칭</h3>
+                <p className="text-sm text-gray-600">
+                  참석자를 기반으로 팀을 자동으로 조합합니다.
+                </p>
+              </div>
+              <div className="flex items-center space-x-4">
+                <button
+                  onClick={() => router.push(`/team/${teamId}/game/${gameId}/match`)}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-md font-medium"
+                >
+                  팀 매칭 보기
+                </button>
+                {isManager && game.teams && (
+                  <button
+                    onClick={startGame}
+                    className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-md font-medium"
+                  >
+                    경기 시작
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {game.teams && isManager && (game.status === "started" || game.status === "finished") && (
+          <div className="bg-white rounded-lg shadow-md mb-8">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h2 className="text-xl font-semibold text-gray-900">쿼터별 스코어</h2>
+              <p className="text-sm text-gray-500 mt-1">
+                각 팀의 쿼터별 점수를 입력하세요. (매니저만 수정 가능)
               </p>
             </div>
-            <button
-              onClick={() => router.push(`/team/${teamId}/game/${gameId}/match`)}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-md font-medium"
-            >
-              팀 매칭 보기
-            </button>
+            <div className="p-6">
+              {(() => {
+                const teamResults = JSON.parse(game.teams)
+                return (
+                  <div className="space-y-6">
+                    {teamResults.map((team: any) => (
+                      <div key={team.teamNumber} className="border rounded-lg p-4">
+                        <h3 className="text-lg font-bold text-gray-900 mb-4">
+                          팀 {team.teamNumber}
+                        </h3>
+                        <div className="grid grid-cols-4 gap-4">
+                          {[1, 2, 3, 4].map((quarter) => {
+                            const scoreRecord = scores.find(
+                              (s) =>
+                                s.teamNumber === team.teamNumber && s.quarter === quarter
+                            )
+                            return (
+                              <div key={quarter}>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                  {quarter}쿼터
+                                </label>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  value={scoreRecord?.score || 0}
+                                  onChange={(e) =>
+                                    updateScore(
+                                      team.teamNumber,
+                                      quarter,
+                                      parseInt(e.target.value) || 0
+                                    )
+                                  }
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                />
+                              </div>
+                            )
+                          })}
+                        </div>
+                        <div className="mt-4 text-right">
+                          <span className="text-lg font-bold text-gray-900">
+                            총점:{" "}
+                            {scores
+                              .filter((s) => s.teamNumber === team.teamNumber)
+                              .reduce((sum, s) => sum + s.score, 0)}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )
+              })()}
+            </div>
+          </div>
+        )}
+
+        <div className="bg-white rounded-lg shadow-md mb-8">
+          <div className="px-6 py-4 border-b border-gray-200">
+            <h2 className="text-xl font-semibold text-gray-900">댓글 ({comments.length})</h2>
+          </div>
+          <div className="p-6">
+            <div className="mb-6">
+              <textarea
+                value={commentContent}
+                onChange={(e) => setCommentContent(e.target.value)}
+                placeholder="댓글을 입력하세요..."
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                rows={3}
+              />
+              <div className="mt-2 flex justify-end">
+                <button
+                  onClick={postComment}
+                  disabled={!commentContent.trim() || postingComment}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md text-sm font-medium disabled:opacity-50"
+                >
+                  {postingComment ? "등록 중..." : "댓글 등록"}
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              {comments.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  아직 댓글이 없습니다. 첫 번째 댓글을 작성해보세요!
+                </div>
+              ) : (
+                comments.map((comment) => (
+                  <div key={comment.id} className="border-b border-gray-200 pb-4">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center space-x-3">
+                        {comment.user.image ? (
+                          <img
+                            className="h-8 w-8 rounded-full"
+                            src={comment.user.image}
+                            alt={comment.user.name || ""}
+                          />
+                        ) : (
+                          <div className="h-8 w-8 rounded-full bg-gray-300 flex items-center justify-center">
+                            <span className="text-xs font-medium text-gray-700">
+                              {comment.user.name?.charAt(0).toUpperCase() || "?"}
+                            </span>
+                            </div>
+                        )}
+                        <div>
+                          <div className="text-sm font-medium text-gray-900">
+                            {comment.user.name}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {new Date(comment.createdAt).toLocaleString("ko-KR")}
+                          </div>
+                        </div>
+                      </div>
+                      {(comment.userId === session?.user?.id || isManager) && (
+                        <button
+                          onClick={() => deleteComment(comment.id)}
+                          className="text-red-600 hover:text-red-800 text-sm"
+                        >
+                          삭제
+                        </button>
+                      )}
+                    </div>
+                    <div className="mt-2 text-sm text-gray-700 ml-11">
+                      {comment.content}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         </div>
 

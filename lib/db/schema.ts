@@ -5,10 +5,12 @@ import { createId } from "@paralleldrive/cuid2"
 export const memberRoleEnum = ["MANAGER", "MEMBER"] as const
 export const memberTierEnum = ["A", "B", "C"] as const
 export const attendanceStatusEnum = ["attend", "absent", "pending"] as const
+export const gameStatusEnum = ["pending", "started", "finished"] as const
 
 export type MemberRole = typeof memberRoleEnum[number]
 export type MemberTier = typeof memberTierEnum[number]
 export type AttendanceStatus = typeof attendanceStatusEnum[number]
+export type GameStatus = typeof gameStatusEnum[number]
 
 // Users table
 export const users = sqliteTable("User", {
@@ -140,6 +142,7 @@ export const games = sqliteTable("Game", {
   teamCount: integer("teamCount").notNull().default(2),
   playersPerTeam: integer("playersPerTeam").notNull().default(5),
   teams: text("teams", { mode: "json" }),
+  status: text("status", { enum: gameStatusEnum }).notNull().default("pending"),
   createdAt: integer("createdAt", { mode: "timestamp_ms" })
     .notNull()
     .$defaultFn(() => new Date()),
@@ -192,4 +195,55 @@ export const guests = sqliteTable("Guest", {
   createdAt: integer("createdAt", { mode: "timestamp_ms" })
     .notNull()
     .$defaultFn(() => new Date()),
+})
+
+// Scores table
+export const scores = sqliteTable(
+  "Score",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => createId()),
+    gameId: text("gameId")
+      .notNull()
+      .references(() => games.id, { onDelete: "cascade" }),
+    teamNumber: integer("teamNumber").notNull(),
+    quarter: integer("quarter").notNull(),
+    score: integer("score").notNull().default(0),
+    createdAt: integer("createdAt", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    updatedAt: integer("updatedAt", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date())
+      .$onUpdate(() => new Date()),
+  },
+  (score) => ({
+    gameTeamQuarterUnique: unique("Score_gameId_teamNumber_quarter_key").on(
+      score.gameId,
+      score.teamNumber,
+      score.quarter
+    ),
+  })
+)
+
+// Comments table
+export const comments = sqliteTable("Comment", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => createId()),
+  gameId: text("gameId")
+    .notNull()
+    .references(() => games.id, { onDelete: "cascade" }),
+  userId: text("userId")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  content: text("content").notNull(),
+  createdAt: integer("createdAt", { mode: "timestamp_ms" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+  updatedAt: integer("updatedAt", { mode: "timestamp_ms" })
+    .notNull()
+    .$defaultFn(() => new Date())
+    .$onUpdate(() => new Date()),
 })
