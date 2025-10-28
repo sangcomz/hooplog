@@ -399,7 +399,7 @@ export default function GameDetailPage() {
                   ⚙️ 팀 설정
                 </button>
               )}
-              <span className="text-sm text-gray-600">{session.user?.name}님</span>
+              <span className="text-sm text-gray-800">{session.user?.name}님</span>
               <button
                 onClick={() => {
                   window.location.href =
@@ -419,7 +419,7 @@ export default function GameDetailPage() {
           <h1 className="text-2xl font-bold text-gray-900 mb-4">경기 정보</h1>
           <div className="space-y-3">
             <div>
-              <span className="text-sm text-gray-500">날짜</span>
+              <span className="text-sm text-gray-700">날짜</span>
               <p className="text-lg font-medium">
                 {new Date(game.date).toLocaleString("ko-KR", {
                   year: "numeric",
@@ -432,18 +432,18 @@ export default function GameDetailPage() {
             </div>
             {game.location && (
               <div>
-                <span className="text-sm text-gray-500">장소</span>
+                <span className="text-sm text-gray-700">장소</span>
                 <p className="text-lg font-medium">{game.location}</p>
               </div>
             )}
             {game.description && (
               <div>
-                <span className="text-sm text-gray-500">설명</span>
+                <span className="text-sm text-gray-700">설명</span>
                 <p className="text-lg">{game.description}</p>
               </div>
             )}
             <div>
-              <span className="text-sm text-gray-500">생성자</span>
+              <span className="text-sm text-gray-700">생성자</span>
               <p className="text-lg font-medium">{game.creator.name}</p>
             </div>
           </div>
@@ -493,15 +493,15 @@ export default function GameDetailPage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
               <div className="text-center p-4 bg-white rounded-lg shadow-md">
                 <div className="text-3xl font-bold text-green-600">{attendCount}</div>
-                <div className="text-sm text-gray-600">참석</div>
+                <div className="text-sm text-gray-800">참석</div>
               </div>
               <div className="text-center p-4 bg-white rounded-lg shadow-md">
                 <div className="text-3xl font-bold text-red-600">{absentCount}</div>
-                <div className="text-sm text-gray-600">불참</div>
+                <div className="text-sm text-gray-800">불참</div>
               </div>
               <div className="text-center p-4 bg-white rounded-lg shadow-md">
                 <div className="text-3xl font-bold text-yellow-600">{pendingCount}</div>
-                <div className="text-sm text-gray-600">미정</div>
+                <div className="text-sm text-gray-800">미정</div>
               </div>
             </div>
           </>
@@ -537,7 +537,7 @@ export default function GameDetailPage() {
                     </div>
                     <div>
                       <div className="text-sm font-medium text-gray-900">{guest.name}</div>
-                      <div className="text-xs text-gray-500">게스트 (자동 참석)</div>
+                      <div className="text-xs text-gray-700">게스트 (자동 참석)</div>
                     </div>
                   </div>
                   <div className="flex items-center space-x-2">
@@ -568,7 +568,7 @@ export default function GameDetailPage() {
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-lg font-bold text-gray-900 mb-2">팀 매칭</h3>
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-gray-800">
                   참석자를 기반으로 팀을 자동으로 조합합니다.
                 </p>
               </div>
@@ -596,7 +596,7 @@ export default function GameDetailPage() {
           <div className="bg-white rounded-lg shadow-md mb-8">
             <div className="px-6 py-4 border-b border-gray-200">
               <h2 className="text-xl font-semibold text-gray-900">쿼터별 스코어</h2>
-              <p className="text-sm text-gray-500 mt-1">
+              <p className="text-sm text-gray-700 mt-1">
                 각 팀의 쿼터별 점수를 입력하세요. (매니저만 수정 가능)
               </p>
             </div>
@@ -706,7 +706,7 @@ export default function GameDetailPage() {
                           <div className="text-sm font-medium text-gray-900">
                             {comment.user.name}
                           </div>
-                          <div className="text-xs text-gray-500">
+                          <div className="text-xs text-gray-700">
                             {new Date(comment.createdAt).toLocaleString("ko-KR")}
                           </div>
                         </div>
@@ -759,7 +759,7 @@ export default function GameDetailPage() {
                     <div className="text-sm font-medium text-gray-900">
                       {attendance.user.name}
                     </div>
-                    <div className="text-sm text-gray-500">{attendance.user.email}</div>
+                    <div className="text-sm text-gray-700">{attendance.user.email}</div>
                   </div>
                 </div>
                 <div className="flex items-center space-x-2">

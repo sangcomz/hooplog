@@ -36,6 +36,7 @@ export default function TeamSettingsPage() {
   const [team, setTeam] = useState<Team | null>(null)
   const [loading, setLoading] = useState(true)
   const [updating, setUpdating] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState<string | null>(null)
   const [isManager, setIsManager] = useState(false)
 
   useEffect(() => {
@@ -103,6 +104,31 @@ export default function TeamSettingsPage() {
     }
   }
 
+  const deleteMember = async (memberId: string, memberName: string) => {
+    if (deleting) return
+
+    if (!confirm(`정말 ${memberName}님을 팀에서 삭제하시겠습니까?`)) return
+
+    setDeleting(memberId)
+    try {
+      const response = await fetch(`/api/teams/${teamId}/members/${memberId}`, {
+        method: "DELETE",
+      })
+
+      if (response.ok) {
+        await fetchTeamDetails()
+      } else {
+        const error = await response.json()
+        alert(error.error || "Failed to delete member")
+      }
+    } catch (error) {
+      console.error("Failed to delete member:", error)
+      alert("Failed to delete member")
+    } finally {
+      setDeleting(null)
+    }
+  }
+
   const getTierColor = (tier: string) => {
     switch (tier) {
       case "A":
@@ -148,7 +174,7 @@ export default function TeamSettingsPage() {
               </button>
             </div>
             <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-600">{session.user?.name}님</span>
+              <span className="text-sm text-gray-800">{session.user?.name}님</span>
               <button
                 onClick={() => {
                   window.location.href =
@@ -166,7 +192,7 @@ export default function TeamSettingsPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">팀 설정</h1>
-          <p className="text-gray-600">{team.name}</p>
+          <p className="text-gray-800">{team.name}</p>
         </div>
 
         <div className="bg-white rounded-lg shadow-md">
@@ -174,7 +200,7 @@ export default function TeamSettingsPage() {
             <h2 className="text-xl font-semibold text-gray-900">
               팀원 관리 ({team.members.length}명)
             </h2>
-            <p className="text-sm text-gray-500 mt-1">
+            <p className="text-sm text-gray-700 mt-1">
               팀원의 티어를 변경할 수 있습니다. 티어는 팀 매칭 시 균등하게 분배됩니다.
             </p>
           </div>
@@ -205,7 +231,7 @@ export default function TeamSettingsPage() {
                     <div className="text-base font-medium text-gray-900">
                       {member.user.name}
                     </div>
-                    <div className="text-sm text-gray-500">{member.user.email}</div>
+                    <div className="text-sm text-gray-700">{member.user.email}</div>
                   </div>
                   <span
                     className={`px-3 py-1 rounded-full text-xs font-medium ${getRoleColor(
@@ -217,13 +243,13 @@ export default function TeamSettingsPage() {
                 </div>
 
                 <div className="flex items-center space-x-3">
-                  <span className="text-sm text-gray-500 mr-2">티어</span>
+                  <span className="text-sm text-gray-700 mr-2">티어</span>
                   <div className="flex space-x-2">
                     {["A", "B", "C"].map((tier) => (
                       <button
                         key={tier}
                         onClick={() => updateMemberTier(member.id, tier)}
-                        disabled={updating === member.id || member.tier === tier}
+                        disabled={updating === member.id || member.tier === tier || deleting === member.id}
                         className={`px-4 py-2 rounded-md font-medium text-sm border-2 transition-colors ${
                           member.tier === tier
                             ? getTierColor(tier) + " border-current"
@@ -235,7 +261,18 @@ export default function TeamSettingsPage() {
                     ))}
                   </div>
                   {updating === member.id && (
-                    <div className="text-sm text-gray-500">변경 중...</div>
+                    <div className="text-sm text-gray-700">변경 중...</div>
+                  )}
+                  {deleting === member.id ? (
+                    <div className="text-sm text-gray-700">삭제 중...</div>
+                  ) : (
+                    <button
+                      onClick={() => deleteMember(member.id, member.user.name)}
+                      disabled={updating === member.id}
+                      className="text-red-600 hover:text-red-800 text-sm font-medium disabled:opacity-50"
+                    >
+                      삭제
+                    </button>
                   )}
                 </div>
               </div>

@@ -51,6 +51,15 @@ export async function PATCH(
       return NextResponse.json({ error: "Game not found" }, { status: 404 })
     }
 
+    // Check if the game has started - only allow attendance updates before the game starts
+    const game = gameCheck[0]
+    if (game.status === "started" || game.status === "finished") {
+      return NextResponse.json(
+        { error: "Cannot update attendance after the game has started" },
+        { status: 400 }
+      )
+    }
+
     // Update or create attendance record
     const existingAttendance = await db
       .select()

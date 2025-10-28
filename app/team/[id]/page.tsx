@@ -173,7 +173,7 @@ export default function TeamPage() {
                   ⚙️ 팀 설정
                 </button>
               )}
-              <span className="text-sm text-gray-600">
+              <span className="text-sm text-gray-800">
                 {session.user?.name}님
               </span>
               <button
@@ -193,12 +193,12 @@ export default function TeamPage() {
         <div className="mb-8">
           <div className="flex items-center justify-between mb-4">
             <h1 className="text-3xl font-bold text-gray-900">{team.name}</h1>
-            <div className="text-sm text-gray-500">
+            <div className="text-sm text-gray-700">
               팀 코드: <span className="font-mono font-medium">{team.code}</span>
             </div>
           </div>
           {team.description && (
-            <p className="text-gray-600">{team.description}</p>
+            <p className="text-gray-800">{team.description}</p>
           )}
         </div>
 
@@ -231,7 +231,7 @@ export default function TeamPage() {
                     <div className="text-sm font-medium text-gray-900">
                       {member.user.name}
                     </div>
-                    <div className="text-sm text-gray-500">
+                    <div className="text-sm text-gray-700">
                       {member.user.email}
                     </div>
                   </div>
@@ -256,19 +256,19 @@ export default function TeamPage() {
               <div className="text-2xl font-bold text-indigo-600">
                 {team.members.filter(m => m.role === "MANAGER").length}
               </div>
-              <div className="text-sm text-gray-600">매니저</div>
+              <div className="text-sm text-gray-800">매니저</div>
             </div>
             <div className="text-center p-4 bg-gray-50 rounded-lg">
               <div className="text-2xl font-bold text-green-600">
                 {team.members.filter(m => m.role === "MEMBER").length}
               </div>
-              <div className="text-sm text-gray-600">멤버</div>
+              <div className="text-sm text-gray-800">멤버</div>
             </div>
             <div className="text-center p-4 bg-gray-50 rounded-lg">
               <div className="text-2xl font-bold text-orange-600">
                 {team.members.length}
               </div>
-              <div className="text-sm text-gray-600">전체 인원</div>
+              <div className="text-sm text-gray-800">전체 인원</div>
             </div>
           </div>
         </div>
@@ -309,17 +309,17 @@ export default function TeamPage() {
                         })}
                       </div>
                       {game.location && (
-                        <div className="text-sm text-gray-500 mt-1">
+                        <div className="text-sm text-gray-700 mt-1">
                           장소: {game.location}
                         </div>
                       )}
                       {game.description && (
-                        <div className="text-sm text-gray-500 mt-1">
+                        <div className="text-sm text-gray-700 mt-1">
                           {game.description}
                         </div>
                       )}
                     </div>
-                    <div className="text-sm text-gray-400">
+                    <div className="text-sm text-gray-600">
                       생성자: {game.creator.name}
                     </div>
                   </div>
