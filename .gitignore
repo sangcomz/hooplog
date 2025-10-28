@@ -45,3 +45,31 @@ next-env.d.ts
 *.db.backup
 *.db-shm
 *.db-wal
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+
+# OS
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Turbo
+.turbo
+
+# Testing
+.jest-cache/
+
+# Temporary files
+*.tmp
+*.temp
