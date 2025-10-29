@@ -92,10 +92,13 @@ export async function PATCH(
       }
     }
 
-    // Prepare update object
-    const updateData: { tier?: string; role?: string } = {}
-    if (tier) updateData.tier = tier
-    if (role) updateData.role = role
+    // Prepare update object with proper types
+    const updateData: {
+      tier?: "A" | "B" | "C"
+      role?: "MANAGER" | "MEMBER"
+    } = {}
+    if (tier) updateData.tier = tier as "A" | "B" | "C"
+    if (role) updateData.role = role as "MANAGER" | "MEMBER"
 
     // Update the member
     const [updatedMember] = await db
