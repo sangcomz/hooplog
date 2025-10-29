@@ -202,77 +202,6 @@ export default function TeamPage() {
         </div>
 
         <div className="bg-bg-primary rounded-lg shadow-md">
-          <div className="px-6 py-4 border-b border-border-primary">
-            <h2 className="text-xl font-semibold text-text-primary">
-              팀 멤버 ({team.members.length}명)
-            </h2>
-          </div>
-          <div className="divide-y divide-border-primary">
-            {team.members.map((member) => (
-              <div key={member.id} className="px-6 py-4 flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                  <div className="flex-shrink-0">
-                    {member.user.image ? (
-                      <img
-                        className="h-10 w-10 rounded-full"
-                        src={member.user.image}
-                        alt={member.user.name || ""}
-                      />
-                    ) : (
-                      <div className="h-10 w-10 rounded-full bg-bg-tertiary flex items-center justify-center">
-                        <span className="text-sm font-medium text-text-secondary">
-                          {member.user.name?.charAt(0).toUpperCase() || "?"}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                  <div>
-                    <div className="text-sm font-medium text-text-primary">
-                      {member.user.name}
-                    </div>
-                    <div className="text-sm text-text-tertiary">
-                      {member.user.email}
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getRoleColor(member.role)}`}>
-                    {member.role === "MANAGER" ? "매니저" : "멤버"}
-                  </span>
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getTierColor(member.tier)}`}>
-                    티어 {member.tier}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="mt-8 bg-bg-primary rounded-lg shadow-md p-6">
-          <h3 className="text-lg font-semibold text-text-primary mb-4">팀 정보</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="text-center p-4 bg-bg-secondary rounded-lg">
-              <div className="text-2xl font-bold text-primary-solid">
-                {team.members.filter(m => m.role === "MANAGER").length}
-              </div>
-              <div className="text-sm text-text-secondary">매니저</div>
-            </div>
-            <div className="text-center p-4 bg-bg-secondary rounded-lg">
-              <div className="text-2xl font-bold text-success-solid">
-                {team.members.filter(m => m.role === "MEMBER").length}
-              </div>
-              <div className="text-sm text-text-secondary">멤버</div>
-            </div>
-            <div className="text-center p-4 bg-bg-secondary rounded-lg">
-              <div className="text-2xl font-bold text-warning-solid">
-                {team.members.length}
-              </div>
-              <div className="text-sm text-text-secondary">전체 인원</div>
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-8 bg-bg-primary rounded-lg shadow-md">
           <div className="border-b border-border-primary">
             <div className="px-6 py-4 flex items-center justify-between">
               <div className="flex space-x-4">
@@ -360,6 +289,77 @@ export default function TeamPage() {
               <TeamStatistics teamId={teamId} />
             </div>
           )}
+        </div>
+
+        <div className="mt-8 bg-bg-primary rounded-lg shadow-md">
+          <div className="px-6 py-4 border-b border-border-primary">
+            <h2 className="text-xl font-semibold text-text-primary">
+              팀 멤버 ({team.members.length}명)
+            </h2>
+          </div>
+          <div className="divide-y divide-border-primary">
+            {team.members.map((member) => (
+              <div key={member.id} className="px-6 py-4 flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  <div className="flex-shrink-0">
+                    {member.user.image ? (
+                      <img
+                        className="h-10 w-10 rounded-full"
+                        src={member.user.image}
+                        alt={member.user.name || ""}
+                      />
+                    ) : (
+                      <div className="h-10 w-10 rounded-full bg-bg-tertiary flex items-center justify-center">
+                        <span className="text-sm font-medium text-text-secondary">
+                          {member.user.name?.charAt(0).toUpperCase() || "?"}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <div className="text-sm font-medium text-text-primary">
+                      {member.user.name}
+                    </div>
+                    <div className="text-sm text-text-tertiary">
+                      {member.user.email}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getRoleColor(member.role)}`}>
+                    {member.role === "MANAGER" ? "매니저" : "멤버"}
+                  </span>
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getTierColor(member.tier)}`}>
+                    티어 {member.tier}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="mt-8 bg-bg-primary rounded-lg shadow-md p-6">
+          <h3 className="text-lg font-semibold text-text-primary mb-4">팀 정보</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="text-center p-4 bg-bg-secondary rounded-lg">
+              <div className="text-2xl font-bold text-primary-solid">
+                {team.members.filter(m => m.role === "MANAGER").length}
+              </div>
+              <div className="text-sm text-text-secondary">매니저</div>
+            </div>
+            <div className="text-center p-4 bg-bg-secondary rounded-lg">
+              <div className="text-2xl font-bold text-success-solid">
+                {team.members.filter(m => m.role === "MEMBER").length}
+              </div>
+              <div className="text-sm text-text-secondary">멤버</div>
+            </div>
+            <div className="text-center p-4 bg-bg-secondary rounded-lg">
+              <div className="text-2xl font-bold text-warning-solid">
+                {team.members.length}
+              </div>
+              <div className="text-sm text-text-secondary">전체 인원</div>
+            </div>
+          </div>
         </div>
       </div>
 

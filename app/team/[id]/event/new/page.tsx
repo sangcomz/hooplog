@@ -42,12 +42,6 @@ export default function NewEventGamePage() {
   const [playerB, setPlayerB] = useState<Player[]>([])
   const [comment, setComment] = useState("")
 
-  // Guest input states
-  const [showGuestModalA, setShowGuestModalA] = useState(false)
-  const [showGuestModalB, setShowGuestModalB] = useState(false)
-  const [guestName, setGuestName] = useState("")
-  const [guestTier, setGuestTier] = useState<"A" | "B" | "C">("C")
-
   useEffect(() => {
     if (status === "unauthenticated") {
       router.push("/auth/signin")
@@ -107,31 +101,6 @@ export default function NewEventGamePage() {
         setPlayerA(playerA.filter(p => p.id !== player.id))
       }
     }
-  }
-
-  const addGuest = (team: "A" | "B") => {
-    if (!guestName.trim()) {
-      alert("게스트 이름을 입력해주세요")
-      return
-    }
-
-    const guest: Player = {
-      type: "guest",
-      name: guestName.trim(),
-      tier: guestTier,
-      id: `guest-${Date.now()}-${Math.random()}`,
-    }
-
-    if (team === "A") {
-      setPlayerA([...playerA, guest])
-      setShowGuestModalA(false)
-    } else {
-      setPlayerB([...playerB, guest])
-      setShowGuestModalB(false)
-    }
-
-    setGuestName("")
-    setGuestTier("C")
   }
 
   const removePlayer = (playerId: string, team: "A" | "B") => {
@@ -291,12 +260,6 @@ export default function NewEventGamePage() {
                 <h3 className="text-lg font-semibold text-text-primary">
                   팀 A ({playerA.length}명)
                 </h3>
-                <button
-                  onClick={() => setShowGuestModalA(true)}
-                  className="text-sm text-purple-600 hover:text-purple-700 dark:text-purple-400 font-medium"
-                >
-                  + 게스트
-                </button>
               </div>
 
               {/* Selected Players */}
@@ -310,11 +273,6 @@ export default function NewEventGamePage() {
                     >
                       <div className="flex items-center space-x-2">
                         <span className="font-medium text-text-primary">{player.name}</span>
-                        {player.type === "guest" && (
-                          <span className="px-2 py-0.5 text-xs bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 rounded">
-                            게스트
-                          </span>
-                        )}
                         <span className="text-xs text-text-tertiary">티어 {player.tier}</span>
                       </div>
                       <button
@@ -360,12 +318,6 @@ export default function NewEventGamePage() {
                 <h3 className="text-lg font-semibold text-text-primary">
                   팀 B ({playerB.length}명)
                 </h3>
-                <button
-                  onClick={() => setShowGuestModalB(true)}
-                  className="text-sm text-purple-600 hover:text-purple-700 dark:text-purple-400 font-medium"
-                >
-                  + 게스트
-                </button>
               </div>
 
               {/* Selected Players */}
@@ -379,11 +331,6 @@ export default function NewEventGamePage() {
                     >
                       <div className="flex items-center space-x-2">
                         <span className="font-medium text-text-primary">{player.name}</span>
-                        {player.type === "guest" && (
-                          <span className="px-2 py-0.5 text-xs bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 rounded">
-                            게스트
-                          </span>
-                        )}
                         <span className="text-xs text-text-tertiary">티어 {player.tier}</span>
                       </div>
                       <button
@@ -463,128 +410,6 @@ export default function NewEventGamePage() {
           </div>
         </div>
       </div>
-
-      {/* Guest Modal for Team A */}
-      {showGuestModalA && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-bg-primary rounded-lg p-6 w-full max-w-md">
-            <h2 className="text-xl font-bold text-text-primary mb-4">팀 A 게스트 추가</h2>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-text-secondary mb-2">
-                  이름 *
-                </label>
-                <input
-                  type="text"
-                  value={guestName}
-                  onChange={(e) => setGuestName(e.target.value)}
-                  placeholder="게스트 이름"
-                  className="w-full px-3 py-2 border border-border-primary rounded-md focus:outline-none focus:ring-2 focus:ring-primary-solid bg-bg-primary text-text-primary"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-text-secondary mb-2">
-                  티어 *
-                </label>
-                <div className="flex space-x-2">
-                  {(["A", "B", "C"] as const).map((tier) => (
-                    <button
-                      key={tier}
-                      onClick={() => setGuestTier(tier)}
-                      className={`flex-1 px-4 py-2 rounded-md font-medium ${
-                        guestTier === tier
-                          ? "bg-primary-solid text-white"
-                          : "bg-bg-secondary text-text-secondary hover:bg-bg-tertiary"
-                      }`}
-                    >
-                      {tier}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div className="flex items-center justify-end space-x-3 pt-4">
-                <button
-                  onClick={() => {
-                    setShowGuestModalA(false)
-                    setGuestName("")
-                    setGuestTier("C")
-                  }}
-                  className="px-4 py-2 text-text-secondary hover:text-text-primary font-medium"
-                >
-                  취소
-                </button>
-                <button
-                  onClick={() => addGuest("A")}
-                  className="bg-primary-solid hover:bg-primary-solid-hover text-white px-4 py-2 rounded-md font-medium"
-                >
-                  추가
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Guest Modal for Team B */}
-      {showGuestModalB && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-bg-primary rounded-lg p-6 w-full max-w-md">
-            <h2 className="text-xl font-bold text-text-primary mb-4">팀 B 게스트 추가</h2>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-text-secondary mb-2">
-                  이름 *
-                </label>
-                <input
-                  type="text"
-                  value={guestName}
-                  onChange={(e) => setGuestName(e.target.value)}
-                  placeholder="게스트 이름"
-                  className="w-full px-3 py-2 border border-border-primary rounded-md focus:outline-none focus:ring-2 focus:ring-primary-solid bg-bg-primary text-text-primary"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-text-secondary mb-2">
-                  티어 *
-                </label>
-                <div className="flex space-x-2">
-                  {(["A", "B", "C"] as const).map((tier) => (
-                    <button
-                      key={tier}
-                      onClick={() => setGuestTier(tier)}
-                      className={`flex-1 px-4 py-2 rounded-md font-medium ${
-                        guestTier === tier
-                          ? "bg-primary-solid text-white"
-                          : "bg-bg-secondary text-text-secondary hover:bg-bg-tertiary"
-                      }`}
-                    >
-                      {tier}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div className="flex items-center justify-end space-x-3 pt-4">
-                <button
-                  onClick={() => {
-                    setShowGuestModalB(false)
-                    setGuestName("")
-                    setGuestTier("C")
-                  }}
-                  className="px-4 py-2 text-text-secondary hover:text-text-primary font-medium"
-                >
-                  취소
-                </button>
-                <button
-                  onClick={() => addGuest("B")}
-                  className="bg-primary-solid hover:bg-primary-solid-hover text-white px-4 py-2 rounded-md font-medium"
-                >
-                  추가
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
