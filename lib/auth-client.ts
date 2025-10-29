@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 
 interface User {
   id: string
@@ -18,7 +18,7 @@ export const useSession = () => {
   const [session, setSession] = useState<Session | null>(null)
   const [status, setStatus] = useState<"loading" | "authenticated" | "unauthenticated">("loading")
 
-  useEffect(() => {
+  const fetchSession = useCallback(() => {
     fetch("/api/auth/session")
       .then(res => res.json())
       .then(data => {
@@ -36,6 +36,10 @@ export const useSession = () => {
       })
   }, [])
 
-  return { data: session, status }
+  useEffect(() => {
+    fetchSession()
+  }, [fetchSession])
+
+  return { data: session, status, refetch: fetchSession }
 }
 
