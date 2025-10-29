@@ -7,12 +7,14 @@ export const memberTierEnum = ["A", "B", "C"] as const
 export const attendanceStatusEnum = ["attend", "absent", "pending"] as const
 export const gameStatusEnum = ["pending", "started", "finished"] as const
 export const votingStatusEnum = ["open", "closed"] as const
+export const eventGameTypeEnum = ["single", "quarter"] as const
 
 export type MemberRole = typeof memberRoleEnum[number]
 export type MemberTier = typeof memberTierEnum[number]
 export type AttendanceStatus = typeof attendanceStatusEnum[number]
 export type GameStatus = typeof gameStatusEnum[number]
 export type VotingStatus = typeof votingStatusEnum[number]
+export type EventGameType = typeof eventGameTypeEnum[number]
 
 // Users table
 export const users = sqliteTable("User", {
@@ -278,3 +280,53 @@ export const votes = sqliteTable(
     ),
   })
 )
+
+// Event Games table (번외 경기)
+export const eventGames = sqliteTable("EventGame", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => createId()),
+  teamId: text("teamId")
+    .notNull()
+    .references(() => teams.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  scoreA: integer("scoreA").notNull().default(0),
+  scoreB: integer("scoreB").notNull().default(0),
+  playerA: text("playerA", { mode: "json" }).notNull(), // Player object array (members and guests)
+  playerB: text("playerB", { mode: "json" }).notNull(), // Player object array (members and guests)
+  type: text("type", { enum: eventGameTypeEnum }).notNull().default("single"),
+  quarters: text("quarters", { mode: "json" }), // Quarter data array
+  comment: text("comment"),
+  gameId: text("gameId").references(() => games.id, { onDelete: "set null" }), // Optional link to regular game
+  createdById: text("createdById")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  createdAt: integer("createdAt", { mode: "timestamp_ms" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+  updatedAt: integer("updatedAt", { mode: "timestamp_ms" })
+    .notNull()
+    .$defaultFn(() => new Date())
+    .$onUpdate(() => new Date()),
+})
+
+// Event Game Comments table
+export const eventGameComments = sqliteTable("EventGameComment", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => createId()),
+  eventGameId: text("eventGameId")
+    .notNull()
+    .references(() => eventGames.id, { onDelete: "cascade" }),
+  userId: text("userId")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  content: text("content").notNull(),
+  createdAt: integer("createdAt", { mode: "timestamp_ms" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+  updatedAt: integer("updatedAt", { mode: "timestamp_ms" })
+    .notNull()
+    .$defaultFn(() => new Date())
+    .$onUpdate(() => new Date()),
+})

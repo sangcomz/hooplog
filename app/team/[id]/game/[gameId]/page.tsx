@@ -82,6 +82,7 @@ export default function GameDetailPage() {
   const [guests, setGuests] = useState<Guest[]>([])
   const [scores, setScores] = useState<Score[]>([])
   const [comments, setComments] = useState<Comment[]>([])
+  const [eventGames, setEventGames] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [updating, setUpdating] = useState(false)
   const [showGuestModal, setShowGuestModal] = useState(false)
@@ -109,7 +110,7 @@ export default function GameDetailPage() {
 
   const fetchGameDetails = async () => {
     try {
-      const [gameResponse, guestsResponse, teamResponse, scoresResponse, commentsResponse, votesResponse] =
+      const [gameResponse, guestsResponse, teamResponse, scoresResponse, commentsResponse, votesResponse, eventGamesResponse] =
         await Promise.all([
           fetch(`/api/teams/${teamId}/games/${gameId}`),
           fetch(`/api/teams/${teamId}/games/${gameId}/guests`),
@@ -117,6 +118,7 @@ export default function GameDetailPage() {
           fetch(`/api/teams/${teamId}/games/${gameId}/scores`),
           fetch(`/api/teams/${teamId}/games/${gameId}/comments`),
           fetch(`/api/teams/${teamId}/games/${gameId}/votes`),
+          fetch(`/api/teams/${teamId}/event-games?gameId=${gameId}`),
         ])
 
       if (gameResponse.ok) {
@@ -157,6 +159,11 @@ export default function GameDetailPage() {
         const votesData = await votesResponse.json()
         setVotes(votesData.votes)
         setUserVote(votesData.userVote)
+      }
+
+      if (eventGamesResponse.ok) {
+        const eventGamesData = await eventGamesResponse.json()
+        setEventGames(eventGamesData)
       }
     } catch (error) {
       console.error("Failed to fetch game details:", error)
@@ -1017,6 +1024,73 @@ export default function GameDetailPage() {
                 )
               })()}
             </div>
+          </div>
+        )}
+
+        {/* Event Games Section */}
+        {game.teams && (game.status === "started" || game.status === "finished") && (
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md mb-8">
+            <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">번외 경기 ({eventGames.length})</h2>
+              <button
+                onClick={() => router.push(`/team/${teamId}/event/new?gameId=${gameId}`)}
+                className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-md text-sm font-medium"
+              >
+                번외 경기 추가
+              </button>
+            </div>
+            {eventGames.length === 0 ? (
+              <div className="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
+                아직 번외 경기가 없습니다. 이 경기와 관련된 번외 경기를 추가해보세요.
+              </div>
+            ) : (
+              <div className="divide-y divide-gray-200 dark:divide-gray-700">
+                {eventGames.map((eventGame) => (
+                  <div
+                    key={eventGame.id}
+                    onClick={() => router.push(`/team/${teamId}/event/${eventGame.id}`)}
+                    className="px-6 py-4 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="text-lg font-bold text-gray-900 dark:text-white mb-2">
+                          {eventGame.title}
+                        </div>
+                        <div className="flex items-center space-x-4 text-sm">
+                          <div className="flex items-center space-x-2">
+                            <span className="text-blue-600 dark:text-blue-400 font-bold">
+                              {eventGame.scoreA}
+                            </span>
+                            <span className="text-gray-500 dark:text-gray-400">:</span>
+                            <span className="text-red-600 dark:text-red-400 font-bold">
+                              {eventGame.scoreB}
+                            </span>
+                          </div>
+                          <span className="text-gray-400 dark:text-gray-500">•</span>
+                          <span className="text-gray-600 dark:text-gray-400">
+                            {eventGame.type === "single" ? "단일 경기" : "쿼터 기반"}
+                          </span>
+                          <span className="text-gray-400 dark:text-gray-500">•</span>
+                          <span className="text-gray-600 dark:text-gray-400">
+                            {(() => {
+                              const playerA = JSON.parse(eventGame.playerA)
+                              const playerB = JSON.parse(eventGame.playerB)
+                              return `${playerA.length}:${playerB.length}`
+                            })()}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="text-sm text-gray-500 dark:text-gray-400">
+                        <div>{eventGame.creatorName}</div>
+                        <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                          {new Date(eventGame.createdAt).toLocaleDateString("ko-KR")}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 

@@ -102,12 +102,19 @@ export default function TeamPage() {
 
     setCreatingGame(true)
     try {
+      // Convert local datetime to timestamp
+      const localDate = new Date(gameForm.date)
+      const timestamp = localDate.getTime()
+
       const response = await fetch(`/api/teams/${teamId}/games`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(gameForm),
+        body: JSON.stringify({
+          ...gameForm,
+          date: timestamp,
+        }),
       })
 
       if (response.ok) {

@@ -57,6 +57,13 @@
       "when": 1761713320545,
       "tag": "0007_wise_sage",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1761727708304,
+      "tag": "0008_charming_hex",
+      "breakpoints": true
     }
   ]
 }

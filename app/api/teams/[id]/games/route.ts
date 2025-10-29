@@ -103,7 +103,7 @@ export async function POST(
       .values({
         teamId,
         creatorId: session.user.id,
-        date: new Date(date),
+        date: typeof date === 'number' ? new Date(date) : new Date(date),
         location: location || null,
         description: description || null,
         teamCount: teamCount || 2,
