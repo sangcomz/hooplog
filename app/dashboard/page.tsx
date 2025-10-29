@@ -4,6 +4,7 @@ import { useSession } from "@/lib/auth-client"
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useTheme } from "@/app/components/ThemeProvider"
+import Link from "next/link"
 
 interface Team {
   id: string
@@ -279,6 +280,22 @@ export default function Dashboard() {
             </div>
           </div>
         )}
+
+        {/* Footer */}
+        <footer className="mt-16 pt-8 border-t border-gray-200 dark:border-gray-700">
+          <div className="flex justify-center space-x-6 text-sm text-gray-500 dark:text-gray-400">
+            <Link href="/terms" className="hover:text-gray-700 dark:hover:text-gray-300">
+              이용약관
+            </Link>
+            <span>|</span>
+            <Link href="/privacy" className="hover:text-gray-700 dark:hover:text-gray-300">
+              개인정보 처리방침
+            </Link>
+          </div>
+          <p className="mt-4 text-center text-xs text-gray-400 dark:text-gray-500">
+            © 2025 HoopLog. All rights reserved.
+          </p>
+        </footer>
       </div>
     </div>
   )

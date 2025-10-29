@@ -1,4 +1,5 @@
 import { signIn } from "@/lib/auth"
+import Link from "next/link"
 
 export default function SignIn() {
   return (
@@ -34,6 +35,17 @@ export default function SignIn() {
               </span>
             </button>
           </form>
+          <p className="mt-4 text-center text-xs text-gray-500">
+            로그인하시면{" "}
+            <Link href="/terms" className="text-indigo-600 hover:text-indigo-500 underline">
+              이용약관
+            </Link>
+            {" "}및{" "}
+            <Link href="/privacy" className="text-indigo-600 hover:text-indigo-500 underline">
+              개인정보 처리방침
+            </Link>
+            에 동의하는 것으로 간주됩니다.
+          </p>
         </div>
       </div>
     </div>

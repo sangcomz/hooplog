@@ -40,6 +40,7 @@ export default function TeamSettingsPage() {
   const [updating, setUpdating] = useState<string | null>(null)
   const [deleting, setDeleting] = useState<string | null>(null)
   const [isManager, setIsManager] = useState(false)
+  const [deletingTeam, setDeletingTeam] = useState(false)
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -106,6 +107,39 @@ export default function TeamSettingsPage() {
     }
   }
 
+  const updateMemberRole = async (memberId: string, newRole: string) => {
+    if (updating) return
+
+    const confirmMessage = newRole === "MANAGER"
+      ? "이 멤버를 매니저로 승격하시겠습니까?"
+      : "이 매니저를 일반 멤버로 변경하시겠습니까?"
+
+    if (!confirm(confirmMessage)) return
+
+    setUpdating(memberId)
+    try {
+      const response = await fetch(`/api/teams/${teamId}/members/${memberId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ role: newRole }),
+      })
+
+      if (response.ok) {
+        await fetchTeamDetails()
+      } else {
+        const error = await response.json()
+        alert(error.error || "Failed to update role")
+      }
+    } catch (error) {
+      console.error("Failed to update role:", error)
+      alert("Failed to update role")
+    } finally {
+      setUpdating(null)
+    }
+  }
+
   const deleteMember = async (memberId: string, memberName: string) => {
     if (deleting) return
 
@@ -131,6 +165,42 @@ export default function TeamSettingsPage() {
     }
   }
 
+  const deleteTeam = async () => {
+    if (deletingTeam) return
+
+    const confirmText = team?.name || ""
+    const userInput = prompt(
+      `팀을 삭제하면 모든 경기 기록과 데이터가 영구적으로 삭제됩니다.\n\n정말로 삭제하시려면 팀 이름 "${confirmText}"을(를) 입력해주세요.`
+    )
+
+    if (userInput !== confirmText) {
+      if (userInput !== null) {
+        alert("팀 이름이 일치하지 않습니다.")
+      }
+      return
+    }
+
+    setDeletingTeam(true)
+    try {
+      const response = await fetch(`/api/teams/${teamId}`, {
+        method: "DELETE",
+      })
+
+      if (response.ok) {
+        alert("팀이 삭제되었습니다.")
+        router.push("/dashboard")
+      } else {
+        const error = await response.json()
+        alert(error.error || "팀 삭제에 실패했습니다.")
+      }
+    } catch (error) {
+      console.error("Failed to delete team:", error)
+      alert("팀 삭제에 실패했습니다.")
+    } finally {
+      setDeletingTeam(false)
+    }
+  }
+
 
   if (status === "loading" || loading) {
     return (
@@ -143,6 +213,9 @@ export default function TeamSettingsPage() {
   if (!session || !team || !isManager) {
     return null
   }
+
+  // Count number of managers
+  const managerCount = team.members.filter(m => m.role === "MANAGER").length
 
   return (
     <div className="min-h-screen bg-bg-secondary">
@@ -248,17 +321,44 @@ export default function TeamSettingsPage() {
                   {updating === member.id && (
                     <div className="text-sm text-text-tertiary">변경 중...</div>
                   )}
-                  {deleting === member.id ? (
-                    <div className="text-sm text-text-tertiary">삭제 중...</div>
-                  ) : (
-                    <button
-                      onClick={() => deleteMember(member.id, member.user.name)}
-                      disabled={updating === member.id}
-                      className="text-error-solid hover:text-red-800 text-sm font-medium disabled:opacity-50"
-                    >
-                      삭제
-                    </button>
-                  )}
+                  <div className="flex items-center space-x-2">
+                    {member.role === "MEMBER" ? (
+                      <button
+                        onClick={() => updateMemberRole(member.id, "MANAGER")}
+                        disabled={updating === member.id || deleting === member.id}
+                        className="text-indigo-600 hover:text-indigo-800 text-sm font-medium disabled:opacity-50"
+                      >
+                        매니저로 승격
+                      </button>
+                    ) : (
+                      <div className="relative group">
+                        <button
+                          onClick={() => updateMemberRole(member.id, "MEMBER")}
+                          disabled={updating === member.id || deleting === member.id || managerCount <= 1}
+                          className="text-orange-600 hover:text-orange-800 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                          title={managerCount <= 1 ? "마지막 매니저는 변경할 수 없습니다" : ""}
+                        >
+                          멤버로 변경
+                        </button>
+                        {managerCount <= 1 && (
+                          <span className="absolute hidden group-hover:block bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-1 text-xs text-white bg-gray-900 dark:bg-gray-700 rounded whitespace-nowrap">
+                            마지막 매니저는 변경할 수 없습니다
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    {deleting === member.id ? (
+                      <div className="text-sm text-text-tertiary">삭제 중...</div>
+                    ) : (
+                      <button
+                        onClick={() => deleteMember(member.id, member.user.name)}
+                        disabled={updating === member.id}
+                        className="text-error-solid hover:text-red-800 text-sm font-medium disabled:opacity-50"
+                      >
+                        삭제
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}
@@ -295,6 +395,31 @@ export default function TeamSettingsPage() {
               </span>
             </li>
           </ul>
+        </div>
+
+        {/* Danger Zone */}
+        <div className="mt-8 bg-red-50 dark:bg-red-900/10 border-2 border-red-200 dark:border-red-800 rounded-lg p-6">
+          <h3 className="text-lg font-semibold text-red-900 dark:text-red-400 mb-2">
+            위험 구역
+          </h3>
+          <p className="text-sm text-red-700 dark:text-red-300 mb-4">
+            아래 작업은 되돌릴 수 없습니다. 신중하게 진행해주세요.
+          </p>
+          <div className="flex items-center justify-between bg-white dark:bg-gray-800 border border-red-200 dark:border-red-700 rounded-lg p-4">
+            <div>
+              <h4 className="font-semibold text-gray-900 dark:text-white mb-1">팀 삭제</h4>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                팀을 삭제하면 모든 경기 기록, 멤버 정보, 출석 데이터가 영구적으로 삭제됩니다.
+              </p>
+            </div>
+            <button
+              onClick={deleteTeam}
+              disabled={deletingTeam}
+              className="bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white px-6 py-2 rounded-md font-medium whitespace-nowrap ml-4"
+            >
+              {deletingTeam ? "삭제 중..." : "팀 삭제"}
+            </button>
+          </div>
         </div>
       </div>
     </div>

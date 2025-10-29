@@ -15,11 +15,28 @@ export async function PATCH(
 
   try {
     const { id: teamId, memberId } = await params
-    const { tier } = await request.json()
+    const { tier, role } = await request.json()
 
-    if (!tier || !["A", "B", "C"].includes(tier)) {
+    // Validate tier if provided
+    if (tier && !["A", "B", "C"].includes(tier)) {
       return NextResponse.json(
         { error: "Invalid tier. Must be 'A', 'B', or 'C'" },
+        { status: 400 }
+      )
+    }
+
+    // Validate role if provided
+    if (role && !["MANAGER", "MEMBER"].includes(role)) {
+      return NextResponse.json(
+        { error: "Invalid role. Must be 'MANAGER' or 'MEMBER'" },
+        { status: 400 }
+      )
+    }
+
+    // At least one field must be provided
+    if (!tier && !role) {
+      return NextResponse.json(
+        { error: "Must provide tier or role to update" },
         { status: 400 }
       )
     }
@@ -39,7 +56,7 @@ export async function PATCH(
 
     if (managerCheck.length === 0) {
       return NextResponse.json(
-        { error: "Only managers can update member tiers" },
+        { error: "Only managers can update members" },
         { status: 403 }
       )
     }
@@ -55,10 +72,35 @@ export async function PATCH(
       return NextResponse.json({ error: "Member not found in this team" }, { status: 404 })
     }
 
-    // Update the tier
+    // If demoting a manager to member, check there's at least one other manager
+    if (role === "MEMBER" && targetMember[0].role === "MANAGER") {
+      const managerCount = await db
+        .select()
+        .from(teamMembers)
+        .where(
+          and(
+            eq(teamMembers.teamId, teamId),
+            eq(teamMembers.role, "MANAGER")
+          )
+        )
+
+      if (managerCount.length <= 1) {
+        return NextResponse.json(
+          { error: "Cannot demote the last manager of the team" },
+          { status: 400 }
+        )
+      }
+    }
+
+    // Prepare update object
+    const updateData: { tier?: string; role?: string } = {}
+    if (tier) updateData.tier = tier
+    if (role) updateData.role = role
+
+    // Update the member
     const [updatedMember] = await db
       .update(teamMembers)
-      .set({ tier })
+      .set(updateData)
       .where(eq(teamMembers.id, memberId))
       .returning()
 

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
-import { db, teamMembers, teams, users } from "@/lib/db"
+import { db, teamMembers, teams, users, games } from "@/lib/db"
 import { eq, and, desc, asc } from "drizzle-orm"
 
 export async function GET(
@@ -66,6 +66,60 @@ export async function GET(
     })
   } catch (error) {
     console.error("Failed to fetch team:", error)
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const session = await auth()
+
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
+  try {
+    const { id: teamId } = await params
+
+    // Check if the requester is a manager of the team
+    const managerCheck = await db
+      .select()
+      .from(teamMembers)
+      .where(
+        and(
+          eq(teamMembers.userId, session.user.id),
+          eq(teamMembers.teamId, teamId),
+          eq(teamMembers.role, "MANAGER")
+        )
+      )
+      .limit(1)
+
+    if (managerCheck.length === 0) {
+      return NextResponse.json(
+        { error: "Only managers can delete the team" },
+        { status: 403 }
+      )
+    }
+
+    // Check if team exists
+    const [team] = await db
+      .select()
+      .from(teams)
+      .where(eq(teams.id, teamId))
+      .limit(1)
+
+    if (!team) {
+      return NextResponse.json({ error: "Team not found" }, { status: 404 })
+    }
+
+    // Delete the team (cascade will delete members, games, etc. due to foreign key constraints)
+    await db.delete(teams).where(eq(teams.id, teamId))
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error("Failed to delete team:", error)
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
   }
 }
