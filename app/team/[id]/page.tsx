@@ -5,6 +5,7 @@ import { useEffect, useState } from "react"
 import { useRouter, useParams } from "next/navigation"
 import { getTierColor, getRoleColor } from "@/app/utils/colors"
 import { ThemeToggle } from "@/app/components/ThemeToggle"
+import TeamStatistics from "@/app/components/TeamStatistics"
 
 interface TeamMember {
   id: string
@@ -51,6 +52,7 @@ export default function TeamPage() {
   const [loading, setLoading] = useState(true)
   const [showGameModal, setShowGameModal] = useState(false)
   const [creatingGame, setCreatingGame] = useState(false)
+  const [activeTab, setActiveTab] = useState<"games" | "stats">("games")
   const [gameForm, setGameForm] = useState({
     date: "",
     location: "",
@@ -264,57 +266,91 @@ export default function TeamPage() {
         </div>
 
         <div className="mt-8 bg-bg-primary rounded-lg shadow-md">
-          <div className="px-6 py-4 border-b border-border-primary flex items-center justify-between">
-            <h2 className="text-xl font-semibold text-text-primary">경기 일정</h2>
-            {isManager && (
-              <button
-                onClick={() => setShowGameModal(true)}
-                className="bg-primary-solid hover:bg-primary-solid-hover text-white px-4 py-2 rounded-md text-sm font-medium"
-              >
-                경기 생성
-              </button>
-            )}
-          </div>
-          {games.length === 0 ? (
-            <div className="px-6 py-12 text-center text-text-muted">
-              아직 생성된 경기가 없습니다.
-            </div>
-          ) : (
-            <div className="divide-y divide-border-primary">
-              {games.map((game) => (
-                <div
-                  key={game.id}
-                  onClick={() => router.push(`/team/${teamId}/game/${game.id}`)}
-                  className="px-6 py-4 hover:bg-bg-secondary cursor-pointer transition-colors"
+          <div className="border-b border-border-primary">
+            <div className="px-6 py-4 flex items-center justify-between">
+              <div className="flex space-x-4">
+                <button
+                  onClick={() => setActiveTab("games")}
+                  className={`px-4 py-2 font-medium text-sm transition-colors ${
+                    activeTab === "games"
+                      ? "text-primary-solid border-b-2 border-primary-solid"
+                      : "text-text-tertiary hover:text-text-primary"
+                  }`}
                 >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="text-sm font-medium text-text-primary">
-                        {new Date(game.date).toLocaleString("ko-KR", {
-                          year: "numeric",
-                          month: "long",
-                          day: "numeric",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </div>
-                      {game.location && (
-                        <div className="text-sm text-text-tertiary mt-1">
-                          장소: {game.location}
-                        </div>
-                      )}
-                      {game.description && (
-                        <div className="text-sm text-text-tertiary mt-1">
-                          {game.description}
-                        </div>
-                      )}
-                    </div>
-                    <div className="text-sm text-text-muted">
-                      생성자: {game.creator.name}
-                    </div>
-                  </div>
+                  경기 일정
+                </button>
+                <button
+                  onClick={() => setActiveTab("stats")}
+                  className={`px-4 py-2 font-medium text-sm transition-colors ${
+                    activeTab === "stats"
+                      ? "text-primary-solid border-b-2 border-primary-solid"
+                      : "text-text-tertiary hover:text-text-primary"
+                  }`}
+                >
+                  통계
+                </button>
+              </div>
+              {isManager && activeTab === "games" && (
+                <button
+                  onClick={() => setShowGameModal(true)}
+                  className="bg-primary-solid hover:bg-primary-solid-hover text-white px-4 py-2 rounded-md text-sm font-medium"
+                >
+                  경기 생성
+                </button>
+              )}
+            </div>
+          </div>
+
+          {activeTab === "games" && (
+            <>
+              {games.length === 0 ? (
+                <div className="px-6 py-12 text-center text-text-muted">
+                  아직 생성된 경기가 없습니다.
                 </div>
-              ))}
+              ) : (
+                <div className="divide-y divide-border-primary">
+                  {games.map((game) => (
+                    <div
+                      key={game.id}
+                      onClick={() => router.push(`/team/${teamId}/game/${game.id}`)}
+                      className="px-6 py-4 hover:bg-bg-secondary cursor-pointer transition-colors"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="text-sm font-medium text-text-primary">
+                            {new Date(game.date).toLocaleString("ko-KR", {
+                              year: "numeric",
+                              month: "long",
+                              day: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </div>
+                          {game.location && (
+                            <div className="text-sm text-text-tertiary mt-1">
+                              장소: {game.location}
+                            </div>
+                          )}
+                          {game.description && (
+                            <div className="text-sm text-text-tertiary mt-1">
+                              {game.description}
+                            </div>
+                          )}
+                        </div>
+                        <div className="text-sm text-text-muted">
+                          생성자: {game.creator.name}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+
+          {activeTab === "stats" && (
+            <div className="p-6">
+              <TeamStatistics teamId={teamId} />
             </div>
           )}
         </div>

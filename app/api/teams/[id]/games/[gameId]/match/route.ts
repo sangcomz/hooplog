@@ -52,23 +52,28 @@ function distributePlayersByTier(players: Player[], teamCount: number): TeamResu
     players: [],
   }))
 
-  // Distribute players by tier round-robin
+  // Distribute players by tier round-robin with continuous indexing
+  let globalIndex = 0
+
   // First distribute A tier
-  shuffledA.forEach((player, index) => {
-    const teamIndex = index % teamCount
+  shuffledA.forEach((player) => {
+    const teamIndex = globalIndex % teamCount
     teams[teamIndex].players.push(player)
+    globalIndex++
   })
 
   // Then distribute B tier
-  shuffledB.forEach((player, index) => {
-    const teamIndex = index % teamCount
+  shuffledB.forEach((player) => {
+    const teamIndex = globalIndex % teamCount
     teams[teamIndex].players.push(player)
+    globalIndex++
   })
 
   // Finally distribute C tier
-  shuffledC.forEach((player, index) => {
-    const teamIndex = index % teamCount
+  shuffledC.forEach((player) => {
+    const teamIndex = globalIndex % teamCount
     teams[teamIndex].players.push(player)
+    globalIndex++
   })
 
   return teams

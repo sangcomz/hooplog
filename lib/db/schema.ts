@@ -6,11 +6,13 @@ export const memberRoleEnum = ["MANAGER", "MEMBER"] as const
 export const memberTierEnum = ["A", "B", "C"] as const
 export const attendanceStatusEnum = ["attend", "absent", "pending"] as const
 export const gameStatusEnum = ["pending", "started", "finished"] as const
+export const votingStatusEnum = ["open", "closed"] as const
 
 export type MemberRole = typeof memberRoleEnum[number]
 export type MemberTier = typeof memberTierEnum[number]
 export type AttendanceStatus = typeof attendanceStatusEnum[number]
 export type GameStatus = typeof gameStatusEnum[number]
+export type VotingStatus = typeof votingStatusEnum[number]
 
 // Users table
 export const users = sqliteTable("User", {
@@ -143,6 +145,7 @@ export const games = sqliteTable("Game", {
   playersPerTeam: integer("playersPerTeam").notNull().default(5),
   teams: text("teams", { mode: "json" }),
   status: text("status", { enum: gameStatusEnum }).notNull().default("pending"),
+  votingStatus: text("votingStatus", { enum: votingStatusEnum }).notNull().default("open"),
   createdAt: integer("createdAt", { mode: "timestamp_ms" })
     .notNull()
     .$defaultFn(() => new Date()),
@@ -247,3 +250,31 @@ export const comments = sqliteTable("Comment", {
     .$defaultFn(() => new Date())
     .$onUpdate(() => new Date()),
 })
+
+// Votes table (MVP voting)
+export const votes = sqliteTable(
+  "Vote",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => createId()),
+    gameId: text("gameId")
+      .notNull()
+      .references(() => games.id, { onDelete: "cascade" }),
+    voterId: text("voterId")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    playerId: text("playerId")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: integer("createdAt", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+  },
+  (vote) => ({
+    gameIdVoterIdUnique: unique("Vote_gameId_voterId_key").on(
+      vote.gameId,
+      vote.voterId
+    ),
+  })
+)

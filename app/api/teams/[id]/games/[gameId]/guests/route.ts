@@ -91,6 +91,15 @@ export async function POST(
       return NextResponse.json({ error: "Game not found" }, { status: 404 })
     }
 
+    // Check if game has already started or finished
+    const game = gameCheck[0]
+    if (game.status === "started" || game.status === "finished") {
+      return NextResponse.json(
+        { error: "경기가 시작된 후에는 게스트를 추가할 수 없습니다" },
+        { status: 400 }
+      )
+    }
+
     // Create the guest
     const [guest] = await db
       .insert(guests)

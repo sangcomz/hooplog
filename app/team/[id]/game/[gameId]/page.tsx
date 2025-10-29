@@ -68,6 +68,7 @@ interface Game {
   teamCount?: number
   teams?: string
   status?: "pending" | "started" | "finished"
+  votingStatus?: "open" | "closed"
 }
 
 export default function GameDetailPage() {
@@ -91,6 +92,9 @@ export default function GameDetailPage() {
   const [postingComment, setPostingComment] = useState(false)
   const [deletingGame, setDeletingGame] = useState(false)
   const [maxQuarter, setMaxQuarter] = useState(1)
+  const [votes, setVotes] = useState<{ playerId: string; playerName: string; playerImage?: string; voteCount: number }[]>([])
+  const [userVote, setUserVote] = useState<string | null>(null)
+  const [votingFor, setVotingFor] = useState<string | null>(null)
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -105,13 +109,14 @@ export default function GameDetailPage() {
 
   const fetchGameDetails = async () => {
     try {
-      const [gameResponse, guestsResponse, teamResponse, scoresResponse, commentsResponse] =
+      const [gameResponse, guestsResponse, teamResponse, scoresResponse, commentsResponse, votesResponse] =
         await Promise.all([
           fetch(`/api/teams/${teamId}/games/${gameId}`),
           fetch(`/api/teams/${teamId}/games/${gameId}/guests`),
           fetch(`/api/teams/${teamId}`),
           fetch(`/api/teams/${teamId}/games/${gameId}/scores`),
           fetch(`/api/teams/${teamId}/games/${gameId}/comments`),
+          fetch(`/api/teams/${teamId}/games/${gameId}/votes`),
         ])
 
       if (gameResponse.ok) {
@@ -146,6 +151,12 @@ export default function GameDetailPage() {
       if (commentsResponse.ok) {
         const commentsData = await commentsResponse.json()
         setComments(commentsData)
+      }
+
+      if (votesResponse.ok) {
+        const votesData = await votesResponse.json()
+        setVotes(votesData.votes)
+        setUserVote(votesData.userVote)
       }
     } catch (error) {
       console.error("Failed to fetch game details:", error)
@@ -303,6 +314,30 @@ export default function GameDetailPage() {
     }
   }
 
+  const finishGame = async () => {
+    if (!confirm("경기를 종료하시겠습니까? 종료하면 MVP 투표가 가능해집니다.")) return
+
+    try {
+      const response = await fetch(`/api/teams/${teamId}/games/${gameId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ status: "finished" }),
+      })
+
+      if (response.ok) {
+        await fetchGameDetails()
+      } else {
+        const error = await response.json()
+        alert(error.error || "Failed to finish game")
+      }
+    } catch (error) {
+      console.error("Failed to finish game:", error)
+      alert("Failed to finish game")
+    }
+  }
+
   const deleteGame = async () => {
     if (!confirm("정말로 이 경기를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.")) return
 
@@ -412,6 +447,54 @@ export default function GameDetailPage() {
     setMaxQuarter(maxQuarter + 1)
   }
 
+  const voteForMVP = async (playerId: string) => {
+    if (votingFor) return
+
+    setVotingFor(playerId)
+    try {
+      const response = await fetch(`/api/teams/${teamId}/games/${gameId}/votes`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ playerId }),
+      })
+
+      if (response.ok) {
+        await fetchGameDetails()
+      } else {
+        const error = await response.json()
+        alert(error.error || "투표에 실패했습니다")
+      }
+    } catch (error) {
+      console.error("Failed to vote:", error)
+      alert("투표에 실패했습니다")
+    } finally {
+      setVotingFor(null)
+    }
+  }
+
+  const closeVoting = async () => {
+    if (!confirm("투표를 종료하시겠습니까? 종료하면 더 이상 투표할 수 없습니다.")) return
+
+    try {
+      const response = await fetch(`/api/teams/${teamId}/games/${gameId}/votes`, {
+        method: "PATCH",
+      })
+
+      if (response.ok) {
+        await fetchGameDetails()
+        alert("투표가 종료되었습니다")
+      } else {
+        const error = await response.json()
+        alert(error.error || "투표 종료에 실패했습니다")
+      }
+    } catch (error) {
+      console.error("Failed to close voting:", error)
+      alert("투표 종료에 실패했습니다")
+    }
+  }
+
   const toggleTheme = () => {
     setTheme(actualTheme === "dark" ? "light" : "dark")
   }
@@ -492,15 +575,25 @@ export default function GameDetailPage() {
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-8">
           <div className="flex justify-between items-start mb-4">
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">경기 정보</h1>
-            {isManager && (
-              <button
-                onClick={deleteGame}
-                disabled={deletingGame}
-                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm font-medium disabled:opacity-50"
-              >
-                {deletingGame ? "삭제 중..." : "경기 삭제"}
-              </button>
-            )}
+            <div className="flex items-center space-x-2">
+              {isManager && game.status === "started" && (
+                <button
+                  onClick={finishGame}
+                  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md text-sm font-medium"
+                >
+                  경기 종료
+                </button>
+              )}
+              {isManager && (
+                <button
+                  onClick={deleteGame}
+                  disabled={deletingGame}
+                  className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm font-medium disabled:opacity-50"
+                >
+                  {deletingGame ? "삭제 중..." : "경기 삭제"}
+                </button>
+              )}
+            </div>
           </div>
           <div className="space-y-3">
             <div>
@@ -640,9 +733,62 @@ export default function GameDetailPage() {
         )}
 
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md mb-8">
+          <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+              출석 현황 ({game.attendances.length}명)
+            </h2>
+          </div>
+          <div className="divide-y divide-gray-200 dark:divide-gray-700">
+            {game.attendances.map((attendance) => (
+              <div key={attendance.id} className="px-6 py-4 flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  <div className="flex-shrink-0">
+                    {attendance.user.image ? (
+                      <img
+                        className="h-10 w-10 rounded-full"
+                        src={attendance.user.image}
+                        alt={attendance.user.name || ""}
+                      />
+                    ) : (
+                      <div className="h-10 w-10 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center">
+                        <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
+                          {attendance.user.name?.charAt(0).toUpperCase() || "?"}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <div className="text-sm font-medium text-gray-900 dark:text-white">
+                      {attendance.user.name}
+                    </div>
+                    <div className="text-sm text-gray-700 dark:text-gray-300">{attendance.user.email}</div>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <span
+                    className={`px-3 py-1 rounded-full text-xs font-medium ${getTierColor(
+                      attendance.member.tier
+                    )}`}
+                  >
+                    티어 {attendance.member.tier}
+                  </span>
+                  <span
+                    className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(
+                      attendance.status
+                    )}`}
+                  >
+                    {getStatusText(attendance.status)}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md mb-8">
           <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white">게스트 ({guests.length}명)</h2>
-            {isManager && (
+            {isManager && (!game.status || game.status === "pending") && (
               <button
                 onClick={() => setShowGuestModal(true)}
                 className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-md text-sm font-medium"
@@ -874,6 +1020,141 @@ export default function GameDetailPage() {
           </div>
         )}
 
+        {game.status === "finished" && game.teams && (
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md mb-8">
+            <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900 dark:text-white">MVP 투표</h2>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                    {game.votingStatus === "closed"
+                      ? "투표가 종료되었습니다"
+                      : "이 경기의 MVP를 선택해주세요 (한 경기당 1표)"}
+                  </p>
+                </div>
+                {isManager && game.votingStatus === "open" && (
+                  <button
+                    onClick={closeVoting}
+                    className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-md text-sm font-medium"
+                  >
+                    투표 종료
+                  </button>
+                )}
+              </div>
+            </div>
+            <div className="p-6">
+              {votes.length > 0 && (
+                <div className="mb-6 bg-gradient-to-r from-yellow-50 to-amber-50 dark:from-yellow-900/20 dark:to-amber-900/20 rounded-lg p-4 border-2 border-yellow-200 dark:border-yellow-700">
+                  <div className="flex items-center space-x-3">
+                    <svg className="w-8 h-8 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                    </svg>
+                    <div>
+                      <h3 className="text-lg font-bold text-gray-900 dark:text-white">현재 1위</h3>
+                      <p className="text-sm text-gray-700 dark:text-gray-300">
+                        {votes[0].playerName} - {votes[0].voteCount}표
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {(() => {
+                  const teamResults = JSON.parse(game.teams)
+                  const allPlayers = teamResults.flatMap((team: any) =>
+                    team.players.map((p: any) => ({
+                      id: p.id,
+                      name: p.name,
+                      tier: p.tier,
+                      teamNumber: team.teamNumber,
+                      isGuest: p.isGuest,
+                    }))
+                  )
+
+                  return allPlayers.map((player: any) => {
+                    const voteData = votes.find(v => v.playerId === player.id)
+                    const voteCount = voteData?.voteCount || 0
+                    const hasVoted = userVote === player.id
+                    const isVoting = votingFor === player.id
+
+                    return (
+                      <button
+                        key={player.id}
+                        onClick={() => voteForMVP(player.id)}
+                        disabled={isVoting || game.votingStatus === "closed"}
+                        className={`p-4 rounded-lg border-2 transition-all ${
+                          hasVoted
+                            ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20"
+                            : "border-gray-200 dark:border-gray-700 hover:border-indigo-300 dark:hover:border-indigo-700"
+                        } disabled:opacity-50 disabled:cursor-not-allowed`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-3">
+                            <div className="flex-shrink-0">
+                              {voteData?.playerImage ? (
+                                <img
+                                  className="h-10 w-10 rounded-full"
+                                  src={voteData.playerImage}
+                                  alt={player.name}
+                                />
+                              ) : (
+                                <div className="h-10 w-10 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center">
+                                  <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
+                                    {player.name.charAt(0).toUpperCase()}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                            <div className="text-left">
+                              <div className="flex items-center space-x-2">
+                                <span className="font-medium text-gray-900 dark:text-white">
+                                  {player.name}
+                                </span>
+                                {player.isGuest && (
+                                  <span className="px-2 py-0.5 text-xs font-medium bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 rounded">
+                                    게스트
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-sm text-gray-600 dark:text-gray-400">
+                                팀 {player.teamNumber} · 티어 {player.tier}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            {hasVoted && (
+                              <svg className="w-5 h-5 text-indigo-600" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                              </svg>
+                            )}
+                            <span className="text-lg font-bold text-gray-900 dark:text-white">
+                              {voteCount}
+                            </span>
+                          </div>
+                        </div>
+                      </button>
+                    )
+                  })
+                })()}
+              </div>
+
+              {userVote && game.votingStatus === "open" && (
+                <p className="text-sm text-gray-600 dark:text-gray-400 mt-4 text-center">
+                  투표를 변경하려면 다른 선수를 선택하세요
+                </p>
+              )}
+              {game.votingStatus === "closed" && (
+                <div className="mt-4 p-3 bg-gray-100 dark:bg-gray-700 rounded-lg text-center">
+                  <p className="text-sm text-gray-700 dark:text-gray-300">
+                    투표가 종료되어 더 이상 투표하거나 변경할 수 없습니다
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md mb-8">
           <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white">댓글 ({comments.length})</h2>
@@ -946,59 +1227,6 @@ export default function GameDetailPage() {
                 ))
               )}
             </div>
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md">
-          <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-              출석 현황 ({game.attendances.length}명)
-            </h2>
-          </div>
-          <div className="divide-y divide-gray-200 dark:divide-gray-700">
-            {game.attendances.map((attendance) => (
-              <div key={attendance.id} className="px-6 py-4 flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                  <div className="flex-shrink-0">
-                    {attendance.user.image ? (
-                      <img
-                        className="h-10 w-10 rounded-full"
-                        src={attendance.user.image}
-                        alt={attendance.user.name || ""}
-                      />
-                    ) : (
-                      <div className="h-10 w-10 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center">
-                        <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
-                          {attendance.user.name?.charAt(0).toUpperCase() || "?"}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                  <div>
-                    <div className="text-sm font-medium text-gray-900 dark:text-white">
-                      {attendance.user.name}
-                    </div>
-                    <div className="text-sm text-gray-700 dark:text-gray-300">{attendance.user.email}</div>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <span
-                    className={`px-3 py-1 rounded-full text-xs font-medium ${getTierColor(
-                      attendance.member.tier
-                    )}`}
-                  >
-                    티어 {attendance.member.tier}
-                  </span>
-                  <span
-                    className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(
-                      attendance.status
-                    )}`}
-                  >
-                    {getStatusText(attendance.status)}
-                  </span>
-                </div>
-              </div>
-            ))}
           </div>
         </div>
       </div>

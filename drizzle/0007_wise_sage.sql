@@ -1,0 +1,1 @@
+ALTER TABLE `Game` ADD `votingStatus` text DEFAULT 'open' NOT NULL;
