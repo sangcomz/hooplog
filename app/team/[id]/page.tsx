@@ -34,6 +34,8 @@ interface Game {
   date: number
   location?: string
   description?: string
+  status: string
+  userAttendanceStatus?: string | null
   creator: {
     id: string
     name: string
@@ -130,6 +132,33 @@ export default function TeamPage() {
       alert("Failed to create game")
     } finally {
       setCreatingGame(false)
+    }
+  }
+
+  const updateAttendance = async (gameId: string, newStatus: "attend" | "absent") => {
+    try {
+      const response = await fetch(`/api/teams/${teamId}/games/${gameId}/attendances`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ status: newStatus }),
+      })
+
+      if (response.ok) {
+        // Update the local state
+        setGames(games.map(game =>
+          game.id === gameId
+            ? { ...game, userAttendanceStatus: newStatus }
+            : game
+        ))
+      } else {
+        const error = await response.json()
+        alert(error.error || "Failed to update attendance")
+      }
+    } catch (error) {
+      console.error("Failed to update attendance:", error)
+      alert("Failed to update attendance")
     }
   }
 
@@ -248,11 +277,13 @@ export default function TeamPage() {
                   {games.map((game) => (
                     <div
                       key={game.id}
-                      onClick={() => router.push(`/team/${teamId}/game/${game.id}`)}
-                      className="px-6 py-4 hover:bg-bg-secondary cursor-pointer transition-colors"
+                      className="px-6 py-4 hover:bg-bg-secondary transition-colors"
                     >
-                      <div className="flex items-center justify-between">
-                        <div>
+                      <div className="flex items-center justify-between gap-4">
+                        <div
+                          onClick={() => router.push(`/team/${teamId}/game/${game.id}`)}
+                          className="flex-1 cursor-pointer"
+                        >
                           <div className="text-sm font-medium text-text-primary">
                             {new Date(game.date).toLocaleString("ko-KR", {
                               year: "numeric",
@@ -273,8 +304,40 @@ export default function TeamPage() {
                             </div>
                           )}
                         </div>
-                        <div className="text-sm text-text-muted">
-                          생성자: {game.creator.name}
+                        <div className="flex items-center space-x-3">
+                          {game.status === "pending" && (
+                            <div className="flex items-center space-x-2">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  updateAttendance(game.id, "attend")
+                                }}
+                                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                                  game.userAttendanceStatus === "attend"
+                                    ? "bg-success-solid text-white"
+                                    : "bg-bg-tertiary text-text-secondary hover:bg-success-solid hover:text-white"
+                                }`}
+                              >
+                                참석
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  updateAttendance(game.id, "absent")
+                                }}
+                                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                                  game.userAttendanceStatus === "absent"
+                                    ? "bg-error-solid text-white"
+                                    : "bg-bg-tertiary text-text-secondary hover:bg-error-solid hover:text-white"
+                                }`}
+                              >
+                                불참
+                              </button>
+                            </div>
+                          )}
+                          <div className="text-sm text-text-muted text-right">
+                            <div>생성자: {game.creator.name}</div>
+                          </div>
                         </div>
                       </div>
                     </div>

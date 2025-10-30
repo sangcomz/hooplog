@@ -41,6 +41,7 @@ export async function GET(
         date: games.date,
         location: games.location,
         description: games.description,
+        status: games.status,
         createdAt: games.createdAt,
         updatedAt: games.updatedAt,
         creator: {
@@ -55,7 +56,27 @@ export async function GET(
       .where(eq(games.teamId, teamId))
       .orderBy(desc(games.date))
 
-    return NextResponse.json(teamGames)
+    // Fetch current user's attendance status for each game
+    const gameIds = teamGames.map(g => g.id)
+    const userAttendances = await db
+      .select()
+      .from(attendances)
+      .where(
+        and(
+          eq(attendances.userId, session.user.id)
+        )
+      )
+
+    const attendanceMap = new Map(
+      userAttendances.map(a => [a.gameId, a.status])
+    )
+
+    const gamesWithAttendance = teamGames.map(game => ({
+      ...game,
+      userAttendanceStatus: attendanceMap.get(game.id) || null,
+    }))
+
+    return NextResponse.json(gamesWithAttendance)
   } catch (error) {
     console.error("Failed to fetch games:", error)
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })

@@ -70,6 +70,69 @@ export async function GET(
   }
 }
 
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const session = await auth()
+
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
+  try {
+    const { id: teamId } = await params
+    const { name, description } = await request.json()
+
+    if (!name || !name.trim()) {
+      return NextResponse.json(
+        { error: "Team name is required" },
+        { status: 400 }
+      )
+    }
+
+    // Check if the requester is a manager of the team
+    const managerCheck = await db
+      .select()
+      .from(teamMembers)
+      .where(
+        and(
+          eq(teamMembers.userId, session.user.id),
+          eq(teamMembers.teamId, teamId),
+          eq(teamMembers.role, "MANAGER")
+        )
+      )
+      .limit(1)
+
+    if (managerCheck.length === 0) {
+      return NextResponse.json(
+        { error: "Only managers can update the team" },
+        { status: 403 }
+      )
+    }
+
+    // Update the team
+    const [updatedTeam] = await db
+      .update(teams)
+      .set({
+        name: name.trim(),
+        description: description ? description.trim() : null,
+        updatedAt: new Date(),
+      })
+      .where(eq(teams.id, teamId))
+      .returning()
+
+    if (!updatedTeam) {
+      return NextResponse.json({ error: "Team not found" }, { status: 404 })
+    }
+
+    return NextResponse.json(updatedTeam)
+  } catch (error) {
+    console.error("Failed to update team:", error)
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
+  }
+}
+
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
