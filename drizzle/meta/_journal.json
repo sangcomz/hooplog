@@ -64,6 +64,13 @@
       "when": 1761727708304,
       "tag": "0008_charming_hex",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1761812226972,
+      "tag": "0009_regular_demogoblin",
+      "breakpoints": true
     }
   ]
 }

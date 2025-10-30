@@ -896,6 +896,37 @@ export default function GameDetailPage() {
                               )
                             })}
                           </div>
+
+                          {/* Winner Display */}
+                          {Object.keys(totalScores).length > 0 && (
+                            <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-600">
+                              <div className="text-center">
+                                {(() => {
+                                  const scores = Object.entries(totalScores).map(([teamNum, score]) => ({
+                                    teamNum: parseInt(teamNum),
+                                    score: score as number
+                                  }))
+                                  const maxScore = Math.max(...scores.map(s => s.score))
+                                  const winners = scores.filter(s => s.score === maxScore)
+
+                                  if (winners.length > 1) {
+                                    return (
+                                      <span className="text-lg font-bold text-yellow-600 dark:text-yellow-400">
+                                        무승부 ({winners.map(w => `팀 ${w.teamNum}`).join(', ')}: {maxScore}점)
+                                      </span>
+                                    )
+                                  } else if (winners.length === 1) {
+                                    return (
+                                      <span className="text-lg font-bold text-green-600 dark:text-green-400">
+                                        팀 {winners[0].teamNum} 승리! ({maxScore}점)
+                                      </span>
+                                    )
+                                  }
+                                  return null
+                                })()}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       )}
 
