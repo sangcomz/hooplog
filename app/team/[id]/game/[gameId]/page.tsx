@@ -92,10 +92,11 @@ export default function GameDetailPage() {
   const [commentContent, setCommentContent] = useState("")
   const [postingComment, setPostingComment] = useState(false)
   const [deletingGame, setDeletingGame] = useState(false)
-  const [maxQuarter, setMaxQuarter] = useState(1)
   const [votes, setVotes] = useState<{ playerId: string; playerName: string; playerImage?: string; voteCount: number }[]>([])
   const [userVote, setUserVote] = useState<string | null>(null)
   const [votingFor, setVotingFor] = useState<string | null>(null)
+  const [rounds, setRounds] = useState<any[]>([])
+  const [expandedRounds, setExpandedRounds] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -110,7 +111,7 @@ export default function GameDetailPage() {
 
   const fetchGameDetails = async () => {
     try {
-      const [gameResponse, guestsResponse, teamResponse, scoresResponse, commentsResponse, votesResponse, eventGamesResponse] =
+      const [gameResponse, guestsResponse, teamResponse, scoresResponse, commentsResponse, votesResponse, eventGamesResponse, matchResponse] =
         await Promise.all([
           fetch(`/api/teams/${teamId}/games/${gameId}`),
           fetch(`/api/teams/${teamId}/games/${gameId}/guests`),
@@ -119,6 +120,7 @@ export default function GameDetailPage() {
           fetch(`/api/teams/${teamId}/games/${gameId}/comments`),
           fetch(`/api/teams/${teamId}/games/${gameId}/votes`),
           fetch(`/api/teams/${teamId}/event-games?gameId=${gameId}`),
+          fetch(`/api/teams/${teamId}/games/${gameId}/match`),
         ])
 
       if (gameResponse.ok) {
@@ -126,6 +128,22 @@ export default function GameDetailPage() {
         setGame(gameData)
       } else if (gameResponse.status === 404) {
         router.push(`/team/${teamId}`)
+      }
+
+      if (matchResponse.ok) {
+        const matchData = await matchResponse.json()
+        console.log('[FRONTEND] Received match data:', {
+          hasRounds: !!matchData.rounds,
+          roundsCount: matchData.rounds?.length || 0,
+          roundIds: matchData.rounds?.map((r: any) => `${r.roundNumber}:${r.id}`) || []
+        })
+        if (matchData.rounds && matchData.rounds.length > 0) {
+          setRounds(matchData.rounds)
+          // Automatically expand the latest round
+          const latestRound = matchData.rounds[matchData.rounds.length - 1]
+          console.log('[FRONTEND] Expanding latest round:', latestRound.id)
+          setExpandedRounds(new Set([latestRound.id]))
+        }
       }
 
       if (guestsResponse.ok) {
@@ -142,12 +160,6 @@ export default function GameDetailPage() {
       if (scoresResponse.ok) {
         const scoresData = await scoresResponse.json()
         setScores(scoresData)
-
-        // Calculate max quarter from existing scores
-        if (scoresData.length > 0) {
-          const maxQ = Math.max(...scoresData.map((s: Score) => s.quarter))
-          setMaxQuarter(maxQ)
-        }
       }
 
       if (commentsResponse.ok) {
@@ -224,14 +236,99 @@ export default function GameDetailPage() {
     }
   }
 
-  const updateScore = async (teamNumber: number, quarter: number, score: number) => {
+  const toggleRound = (roundId: string) => {
+    setExpandedRounds(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(roundId)) {
+        newSet.delete(roundId)
+      } else {
+        newSet.add(roundId)
+      }
+      return newSet
+    })
+  }
+
+  const createNewRound = async (matchType: "balance" | "random" = "balance") => {
+    if (updating) return
+
+    console.log('[FRONTEND] Creating new round, matchType:', matchType)
+    console.log('[FRONTEND] Current rounds count:', rounds.length)
+
+    setUpdating(true)
+    try {
+      const response = await fetch(`/api/teams/${teamId}/games/${gameId}/match`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          teamCount: game?.teamCount || 2,
+          matchType,
+        }),
+      })
+
+      if (response.ok) {
+        const result = await response.json()
+        console.log('[FRONTEND] Round created successfully:', {
+          totalRounds: result.rounds?.length || 0,
+          roundIds: result.rounds?.map((r: any) => `${r.roundNumber}:${r.id}`) || []
+        })
+        await fetchGameDetails()
+      } else {
+        const error = await response.json()
+        alert(error.error || "Failed to create new round")
+      }
+    } catch (error) {
+      console.error("Failed to create new round:", error)
+      alert("Failed to create new round")
+    } finally {
+      setUpdating(false)
+    }
+  }
+
+  const addQuarterToRound = async (roundId: string, currentMaxQuarter: number) => {
+    if (updating) return
+
+    console.log('[FRONTEND] Adding quarter to round:', roundId, 'current:', currentMaxQuarter, 'new:', currentMaxQuarter + 1)
+
+    setUpdating(true)
+    try {
+      const response = await fetch(`/api/teams/${teamId}/games/${gameId}/match`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          roundId,
+          maxQuarter: currentMaxQuarter + 1,
+        }),
+      })
+
+      if (response.ok) {
+        const result = await response.json()
+        console.log('[FRONTEND] Quarter added successfully:', result)
+        await fetchGameDetails()
+      } else {
+        const error = await response.json()
+        console.error('[FRONTEND] Failed to add quarter:', error)
+        alert(error.error || "Failed to add quarter")
+      }
+    } catch (error) {
+      console.error("Failed to add quarter:", error)
+      alert("Failed to add quarter")
+    } finally {
+      setUpdating(false)
+    }
+  }
+
+  const updateScore = async (teamNumber: number, quarter: number, score: number, roundId?: string) => {
     try {
       const response = await fetch(`/api/teams/${teamId}/games/${gameId}/scores`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ teamNumber, quarter, score }),
+        body: JSON.stringify({ teamNumber, quarter, score, roundId }),
       })
 
       if (response.ok) {
@@ -433,26 +530,6 @@ export default function GameDetailPage() {
     }
   }
 
-  const generateMatchups = (teamCount: number): [number, number][] => {
-    if (teamCount === 2) {
-      return [[1, 2]]
-    } else if (teamCount === 3) {
-      return [[1, 2], [2, 3], [3, 1]]
-    } else {
-      // For 4+ teams, generate all possible matchups
-      const matchups: [number, number][] = []
-      for (let i = 1; i <= teamCount; i++) {
-        for (let j = i + 1; j <= teamCount; j++) {
-          matchups.push([i, j])
-        }
-      }
-      return matchups
-    }
-  }
-
-  const addQuarter = () => {
-    setMaxQuarter(maxQuarter + 1)
-  }
 
   const voteForMVP = async (playerId: string) => {
     if (votingFor) return
@@ -634,50 +711,222 @@ export default function GameDetailPage() {
           </div>
         </div>
 
-        {game.teams && (game.status === "started" || game.status === "finished") && (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-8">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">팀 구성</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {(() => {
-                const teamResults = JSON.parse(game.teams)
-                return teamResults.map((team: any) => (
-                  <div
-                    key={team.teamNumber}
-                    className="border border-gray-200 dark:border-gray-700 rounded-lg p-4"
+        {(game.status === "started" || game.status === "finished") && rounds.length > 0 && (
+          <div className="space-y-4 mb-8">
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">경기 라운드</h2>
+              {isManager && game.status === "started" && (
+                <div className="flex space-x-2">
+                  <button
+                    onClick={() => createNewRound("balance")}
+                    disabled={updating}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md text-sm font-medium disabled:opacity-50"
                   >
-                    <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-3">
-                      팀 {team.teamNumber}
-                    </h3>
-                    <div className="space-y-2">
-                      {team.players.map((player: any) => (
-                        <div
-                          key={player.id}
-                          className="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-700 last:border-0"
-                        >
-                          <div className="flex items-center space-x-2">
-                            <span className="text-sm font-medium text-gray-900 dark:text-white">
-                              {player.name}
-                            </span>
-                            {player.isGuest && (
-                              <span className="px-2 py-0.5 text-xs font-medium bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 rounded">
-                                게스트
-                              </span>
-                            )}
-                          </div>
-                          <span
-                            className={`px-2 py-1 text-xs font-medium rounded ${getTierColor(
-                              player.tier
-                            )}`}
-                          >
-                            티어 {player.tier}
+                    새 라운드 (밸런스)
+                  </button>
+                  <button
+                    onClick={() => createNewRound("random")}
+                    disabled={updating}
+                    className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-md text-sm font-medium disabled:opacity-50"
+                  >
+                    새 라운드 (랜덤)
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {rounds.map((round, index) => {
+              const isExpanded = expandedRounds.has(round.id)
+              const isLatest = index === rounds.length - 1
+
+              console.log(`[FRONTEND] Rendering round ${round.roundNumber}:`, {
+                id: round.id,
+                maxQuarter: round.maxQuarter,
+                quarterScoresCount: round.quarterScores?.length || 0,
+                teamsCount: round.teams?.length || 0
+              })
+
+              // Calculate total scores for this round
+              const totalScores: { [teamNumber: number]: number } = {}
+              round.quarterScores.forEach((qs: any) => {
+                Object.entries(qs.scores).forEach(([teamNum, score]: [string, any]) => {
+                  const num = parseInt(teamNum)
+                  totalScores[num] = (totalScores[num] || 0) + score
+                })
+              })
+
+              return (
+                <div
+                  key={round.id}
+                  className={`bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden ${
+                    isLatest ? "ring-2 ring-indigo-500" : ""
+                  }`}
+                >
+                  <div
+                    onClick={() => toggleRound(round.id)}
+                    className="px-6 py-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center justify-between"
+                  >
+                    <div className="flex items-center space-x-4">
+                      <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                        라운드 {round.roundNumber}
+                        {isLatest && (
+                          <span className="ml-2 px-2 py-1 text-xs bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200 rounded">
+                            최신
                           </span>
+                        )}
+                      </h3>
+                      <span className="text-sm text-gray-500 dark:text-gray-400">
+                        {new Date(round.createdAt).toLocaleString("ko-KR")}
+                      </span>
+                    </div>
+                    <div className="flex items-center space-x-4">
+                      {Object.keys(totalScores).length > 0 && (
+                        <div className="flex items-center space-x-2 text-sm font-medium">
+                          {Object.entries(totalScores).map(([teamNum, score], idx) => (
+                            <span key={teamNum}>
+                              {idx > 0 && " : "}
+                              <span className="text-gray-900 dark:text-white">{score}</span>
+                            </span>
+                          ))}
                         </div>
-                      ))}
+                      )}
+                      <svg
+                        className={`w-5 h-5 text-gray-500 dark:text-gray-400 transition-transform ${
+                          isExpanded ? "transform rotate-180" : ""
+                        }`}
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
                     </div>
                   </div>
-                ))
-              })()}
-            </div>
+
+                  {isExpanded && (
+                    <div className="px-6 pb-6 space-y-6">
+                      {/* Team Composition */}
+                      <div>
+                        <h4 className="text-md font-semibold text-gray-900 dark:text-white mb-3">팀 구성</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {round.teams.map((team: any) => (
+                            <div
+                              key={team.teamNumber}
+                              className="border border-gray-200 dark:border-gray-700 rounded-lg p-4"
+                            >
+                              <h5 className="text-md font-bold text-gray-900 dark:text-white mb-3">
+                                팀 {team.teamNumber}
+                              </h5>
+                              <div className="space-y-2">
+                                {team.players.map((player: any) => (
+                                  <div
+                                    key={player.id}
+                                    className="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-700 last:border-0"
+                                  >
+                                    <div className="flex items-center space-x-2">
+                                      <span className="text-sm font-medium text-gray-900 dark:text-white">
+                                        {player.name}
+                                      </span>
+                                      {player.isGuest && (
+                                        <span className="px-2 py-0.5 text-xs font-medium bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 rounded">
+                                          게스트
+                                        </span>
+                                      )}
+                                    </div>
+                                    <span
+                                      className={`px-2 py-1 text-xs font-medium rounded ${getTierColor(
+                                        player.tier
+                                      )}`}
+                                    >
+                                      티어 {player.tier}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Quarter Scores */}
+                      {isManager && (
+                        <div>
+                          <div className="flex items-center justify-between mb-3">
+                            <h4 className="text-md font-semibold text-gray-900 dark:text-white">쿼터별 점수</h4>
+                            <button
+                              onClick={() => addQuarterToRound(round.id, round.maxQuarter || 1)}
+                              disabled={updating}
+                              className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded-md text-sm font-medium disabled:opacity-50"
+                            >
+                              + 쿼터 추가
+                            </button>
+                          </div>
+                          <div className="space-y-3">
+                            {Array.from({ length: round.maxQuarter || 1 }, (_, i) => i + 1).map((quarter) => {
+                              const quarterScore = round.quarterScores.find((qs: any) => qs.quarter === quarter)
+                              return (
+                                <div key={quarter} className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                                  <div className="font-medium text-gray-900 dark:text-white mb-2">
+                                    쿼터 {quarter}
+                                  </div>
+                                  <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${round.teams.length}, 1fr)` }}>
+                                    {round.teams.map((team: any) => (
+                                      <div key={team.teamNumber}>
+                                        <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">
+                                          팀 {team.teamNumber}
+                                        </label>
+                                        <input
+                                          type="number"
+                                          min="0"
+                                          value={quarterScore?.scores[team.teamNumber] || 0}
+                                          onChange={(e) =>
+                                            updateScore(
+                                              team.teamNumber,
+                                              quarter,
+                                              parseInt(e.target.value) || 0,
+                                              round.id
+                                            )
+                                          }
+                                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                                        />
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Display quarter scores for non-managers */}
+                      {!isManager && round.quarterScores.length > 0 && (
+                        <div>
+                          <h4 className="text-md font-semibold text-gray-900 dark:text-white mb-3">쿼터별 점수</h4>
+                          <div className="space-y-2">
+                            {round.quarterScores.map((qs: any) => (
+                              <div key={qs.quarter} className="flex items-center space-x-4 text-sm">
+                                <span className="font-medium text-gray-900 dark:text-white w-16">
+                                  Q{qs.quarter}:
+                                </span>
+                                <div className="flex items-center space-x-2">
+                                  {Object.entries(qs.scores).map(([teamNum, score]: [string, any], idx) => (
+                                    <span key={teamNum}>
+                                      {idx > 0 && " : "}
+                                      <span className="font-bold text-gray-900 dark:text-white">{score}</span>
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
           </div>
         )}
 
@@ -877,155 +1126,6 @@ export default function GameDetailPage() {
           </div>
         )}
 
-        {game.teams && isManager && (game.status === "started" || game.status === "finished") && (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md mb-8">
-            <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-              <div className="flex justify-between items-start">
-                <div>
-                  <h2 className="text-xl font-semibold text-gray-900 dark:text-white">쿼터별 스코어</h2>
-                  <p className="text-sm text-gray-700 dark:text-gray-300 mt-1">
-                    각 매치의 쿼터별 점수를 입력하세요. (매니저만 수정 가능)
-                  </p>
-                </div>
-                <button
-                  onClick={addQuarter}
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md text-sm font-medium"
-                >
-                  + 쿼터 추가
-                </button>
-              </div>
-            </div>
-            <div className="p-6">
-              {(() => {
-                const teamResults = JSON.parse(game.teams)
-                const matchups = generateMatchups(teamResults.length)
-
-                return (
-                  <div className="space-y-8">
-                    {matchups.map(([team1Num, team2Num], matchIdx) => {
-                      const team1 = teamResults.find((t: any) => t.teamNumber === team1Num)
-                      const team2 = teamResults.find((t: any) => t.teamNumber === team2Num)
-
-                      const team1Total = scores
-                        .filter((s) => s.teamNumber === team1Num)
-                        .reduce((sum, s) => sum + s.score, 0)
-                      const team2Total = scores
-                        .filter((s) => s.teamNumber === team2Num)
-                        .reduce((sum, s) => sum + s.score, 0)
-
-                      return (
-                        <div key={matchIdx} className="border border-gray-200 dark:border-gray-700 rounded-lg p-6">
-                          <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">
-                            매치 {matchIdx + 1}: 팀 {team1Num} vs 팀 {team2Num}
-                          </h3>
-
-                          <div className="overflow-x-auto">
-                            <table className="w-full">
-                              <thead>
-                                <tr className="border-b border-gray-200 dark:border-gray-700">
-                                  <th className="text-left py-2 px-3 text-sm font-medium text-gray-700 dark:text-gray-300">팀</th>
-                                  {Array.from({ length: maxQuarter }, (_, i) => i + 1).map((quarter) => (
-                                    <th key={quarter} className="text-center py-2 px-3 text-sm font-medium text-gray-700 dark:text-gray-300">
-                                      Q{quarter}
-                                    </th>
-                                  ))}
-                                  <th className="text-right py-2 px-3 text-sm font-medium text-gray-700 dark:text-gray-300">총점</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {/* Team 1 Row */}
-                                <tr className="border-b border-gray-100 dark:border-gray-700">
-                                  <td className="py-3 px-3 font-medium text-gray-900 dark:text-white">
-                                    팀 {team1Num}
-                                  </td>
-                                  {Array.from({ length: maxQuarter }, (_, i) => i + 1).map((quarter) => {
-                                    const scoreRecord = scores.find(
-                                      (s) => s.teamNumber === team1Num && s.quarter === quarter
-                                    )
-                                    return (
-                                      <td key={quarter} className="py-3 px-3">
-                                        <input
-                                          type="number"
-                                          min="0"
-                                          value={scoreRecord?.score || 0}
-                                          onChange={(e) =>
-                                            updateScore(
-                                              team1Num,
-                                              quarter,
-                                              parseInt(e.target.value) || 0
-                                            )
-                                          }
-                                          className="w-16 px-2 py-1 text-center border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                                        />
-                                      </td>
-                                    )
-                                  })}
-                                  <td className="py-3 px-3 text-right font-bold text-gray-900 dark:text-white">
-                                    {team1Total}
-                                  </td>
-                                </tr>
-
-                                {/* Team 2 Row */}
-                                <tr>
-                                  <td className="py-3 px-3 font-medium text-gray-900 dark:text-white">
-                                    팀 {team2Num}
-                                  </td>
-                                  {Array.from({ length: maxQuarter }, (_, i) => i + 1).map((quarter) => {
-                                    const scoreRecord = scores.find(
-                                      (s) => s.teamNumber === team2Num && s.quarter === quarter
-                                    )
-                                    return (
-                                      <td key={quarter} className="py-3 px-3">
-                                        <input
-                                          type="number"
-                                          min="0"
-                                          value={scoreRecord?.score || 0}
-                                          onChange={(e) =>
-                                            updateScore(
-                                              team2Num,
-                                              quarter,
-                                              parseInt(e.target.value) || 0
-                                            )
-                                          }
-                                          className="w-16 px-2 py-1 text-center border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                                        />
-                                      </td>
-                                    )
-                                  })}
-                                  <td className="py-3 px-3 text-right font-bold text-gray-900 dark:text-white">
-                                    {team2Total}
-                                  </td>
-                                </tr>
-                              </tbody>
-                            </table>
-                          </div>
-
-                          <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                            <div className="text-center">
-                              <span className={`text-lg font-bold ${
-                                team1Total > team2Total
-                                  ? 'text-green-600 dark:text-green-400'
-                                  : team1Total < team2Total
-                                  ? 'text-red-600 dark:text-red-400'
-                                  : 'text-yellow-600 dark:text-yellow-400'
-                              }`}>
-                                {team1Total > team2Total
-                                  ? `팀 ${team1Num} 승리`
-                                  : team1Total < team2Total
-                                  ? `팀 ${team2Num} 승리`
-                                  : '무승부'}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                )
-              })()}
-            </div>
-          </div>
-        )}
 
         {/* Event Games Section */}
         {game.teams && (game.status === "started" || game.status === "finished") && (
@@ -1051,39 +1151,57 @@ export default function GameDetailPage() {
                     onClick={() => router.push(`/team/${teamId}/event/${eventGame.id}`)}
                     className="px-6 py-4 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors"
                   >
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <div className="text-lg font-bold text-gray-900 dark:text-white mb-2">
-                          {eventGame.title}
-                        </div>
-                        <div className="flex items-center space-x-4 text-sm">
-                          <div className="flex items-center space-x-2">
-                            <span className="text-blue-600 dark:text-blue-400 font-bold">
-                              {eventGame.scoreA}
-                            </span>
-                            <span className="text-gray-500 dark:text-gray-400">:</span>
-                            <span className="text-red-600 dark:text-red-400 font-bold">
-                              {eventGame.scoreB}
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="text-lg font-bold text-gray-900 dark:text-white mb-2">
+                            {eventGame.title}
+                          </div>
+                          <div className="flex items-center space-x-4 text-sm">
+                            <div className="flex items-center space-x-2">
+                              <span className="text-blue-600 dark:text-blue-400 font-bold">
+                                {eventGame.scoreA}
+                              </span>
+                              <span className="text-gray-500 dark:text-gray-400">:</span>
+                              <span className="text-red-600 dark:text-red-400 font-bold">
+                                {eventGame.scoreB}
+                              </span>
+                            </div>
+                            <span className="text-gray-400 dark:text-gray-500">•</span>
+                            <span className="text-gray-600 dark:text-gray-400">
+                              {eventGame.type === "single" ? "단일 경기" : "쿼터 기반"}
                             </span>
                           </div>
-                          <span className="text-gray-400 dark:text-gray-500">•</span>
-                          <span className="text-gray-600 dark:text-gray-400">
-                            {eventGame.type === "single" ? "단일 경기" : "쿼터 기반"}
-                          </span>
-                          <span className="text-gray-400 dark:text-gray-500">•</span>
-                          <span className="text-gray-600 dark:text-gray-400">
-                            {(() => {
-                              const playerA = JSON.parse(eventGame.playerA)
-                              const playerB = JSON.parse(eventGame.playerB)
-                              return `${playerA.length}:${playerB.length}`
-                            })()}
-                          </span>
+                        </div>
+                        <div className="text-sm text-gray-500 dark:text-gray-400 text-right">
+                          <div>{eventGame.creatorName}</div>
+                          <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                            {new Date(eventGame.createdAt).toLocaleDateString("ko-KR")}
+                          </div>
                         </div>
                       </div>
-                      <div className="text-sm text-gray-500 dark:text-gray-400">
-                        <div>{eventGame.creatorName}</div>
-                        <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                          {new Date(eventGame.createdAt).toLocaleDateString("ko-KR")}
+
+                      {/* Team compositions */}
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div className="bg-blue-50 dark:bg-blue-900/20 rounded p-3">
+                          <div className="font-semibold text-blue-700 dark:text-blue-300 mb-2">팀 A</div>
+                          <div className="space-y-1">
+                            {JSON.parse(eventGame.playerA).map((player: any, idx: number) => (
+                              <div key={idx} className="text-gray-700 dark:text-gray-300">
+                                {player.name} <span className="text-xs text-gray-500 dark:text-gray-400">(티어 {player.tier})</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="bg-red-50 dark:bg-red-900/20 rounded p-3">
+                          <div className="font-semibold text-red-700 dark:text-red-300 mb-2">팀 B</div>
+                          <div className="space-y-1">
+                            {JSON.parse(eventGame.playerB).map((player: any, idx: number) => (
+                              <div key={idx} className="text-gray-700 dark:text-gray-300">
+                                {player.name} <span className="text-xs text-gray-500 dark:text-gray-400">(티어 {player.tier})</span>
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       </div>
                     </div>

@@ -84,7 +84,7 @@ export default function MatchPage() {
     }
   }
 
-  const generateMatch = async () => {
+  const generateMatch = async (matchType: "balance" | "random" = "balance") => {
     if (generating) return
 
     setGenerating(true)
@@ -94,7 +94,7 @@ export default function MatchPage() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ teamCount: newTeamCount }),
+        body: JSON.stringify({ teamCount: newTeamCount, matchType }),
       })
 
       if (response.ok) {
@@ -232,13 +232,22 @@ export default function MatchPage() {
                   <option value={5}>5팀</option>
                 </select>
               </div>
-              <button
-                onClick={generateMatch}
-                disabled={generating}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-md font-medium disabled:opacity-50"
-              >
-                {generating ? "생성 중..." : matchData.teams ? "재조합" : "팀 조합"}
-              </button>
+              <div className="flex space-x-3">
+                <button
+                  onClick={() => generateMatch("balance")}
+                  disabled={generating}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-md font-medium disabled:opacity-50"
+                >
+                  {generating ? "생성 중..." : "밸런스 매치"}
+                </button>
+                <button
+                  onClick={() => generateMatch("random")}
+                  disabled={generating}
+                  className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-md font-medium disabled:opacity-50"
+                >
+                  {generating ? "생성 중..." : "랜덤 매치"}
+                </button>
+              </div>
             </div>
           </div>
         )}

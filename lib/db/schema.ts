@@ -146,6 +146,7 @@ export const games = sqliteTable("Game", {
   teamCount: integer("teamCount").notNull().default(2),
   playersPerTeam: integer("playersPerTeam").notNull().default(5),
   teams: text("teams", { mode: "json" }),
+  rounds: text("rounds", { mode: "json" }),
   status: text("status", { enum: gameStatusEnum }).notNull().default("pending"),
   votingStatus: text("votingStatus", { enum: votingStatusEnum }).notNull().default("open"),
   createdAt: integer("createdAt", { mode: "timestamp_ms" })

@@ -57,7 +57,7 @@ export async function POST(
 
   try {
     const { id: teamId, gameId } = await params
-    const { teamNumber, quarter, score } = await request.json()
+    const { teamNumber, quarter, score, roundId } = await request.json()
 
     if (
       teamNumber === undefined ||
@@ -91,17 +91,52 @@ export async function POST(
     }
 
     // Check if the game exists and belongs to the team
-    const gameCheck = await db
+    const [game] = await db
       .select()
       .from(games)
       .where(and(eq(games.id, gameId), eq(games.teamId, teamId)))
       .limit(1)
 
-    if (gameCheck.length === 0) {
+    if (!game) {
       return NextResponse.json({ error: "Game not found" }, { status: 404 })
     }
 
-    // Check if score already exists for this team/quarter
+    // Update rounds if roundId is provided
+    if (roundId && game.rounds) {
+      const rounds = JSON.parse(game.rounds as string)
+      const roundIndex = rounds.findIndex((r: any) => r.id === roundId)
+
+      if (roundIndex === -1) {
+        return NextResponse.json({ error: "Round not found" }, { status: 404 })
+      }
+
+      // Find or create quarter score entry
+      const quarterScoreIndex = rounds[roundIndex].quarterScores.findIndex(
+        (qs: any) => qs.quarter === quarter
+      )
+
+      if (quarterScoreIndex === -1) {
+        // Create new quarter score
+        rounds[roundIndex].quarterScores.push({
+          quarter,
+          scores: { [teamNumber]: score }
+        })
+      } else {
+        // Update existing quarter score
+        rounds[roundIndex].quarterScores[quarterScoreIndex].scores[teamNumber] = score
+      }
+
+      // Save updated rounds
+      await db
+        .update(games)
+        .set({
+          rounds: JSON.stringify(rounds),
+          updatedAt: new Date()
+        })
+        .where(eq(games.id, gameId))
+    }
+
+    // Also update the legacy scores table for backward compatibility
     const existingScore = await db
       .select()
       .from(scores)
