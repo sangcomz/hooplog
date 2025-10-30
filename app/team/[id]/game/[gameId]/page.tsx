@@ -97,6 +97,8 @@ export default function GameDetailPage() {
   const [votingFor, setVotingFor] = useState<string | null>(null)
   const [rounds, setRounds] = useState<any[]>([])
   const [expandedRounds, setExpandedRounds] = useState<Set<string>>(new Set())
+  const [editingScores, setEditingScores] = useState<{ [key: string]: number }>({})
+  const [savingScore, setSavingScore] = useState<string | null>(null)
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -321,7 +323,27 @@ export default function GameDetailPage() {
     }
   }
 
-  const updateScore = async (teamNumber: number, quarter: number, score: number, roundId?: string) => {
+  const getScoreKey = (roundId: string, quarter: number, teamNumber: number) => {
+    return `${roundId}-${quarter}-${teamNumber}`
+  }
+
+  const getEditingScore = (roundId: string, quarter: number, teamNumber: number, defaultScore: number) => {
+    const key = getScoreKey(roundId, quarter, teamNumber)
+    return editingScores[key] !== undefined ? editingScores[key] : defaultScore
+  }
+
+  const setEditingScore = (roundId: string, quarter: number, teamNumber: number, score: number) => {
+    const key = getScoreKey(roundId, quarter, teamNumber)
+    setEditingScores(prev => ({ ...prev, [key]: Math.max(0, score) }))
+  }
+
+  const saveScore = async (roundId: string, quarter: number, teamNumber: number) => {
+    const key = getScoreKey(roundId, quarter, teamNumber)
+    const score = editingScores[key]
+
+    if (score === undefined) return
+
+    setSavingScore(key)
     try {
       const response = await fetch(`/api/teams/${teamId}/games/${gameId}/scores`, {
         method: "POST",
@@ -333,6 +355,12 @@ export default function GameDetailPage() {
 
       if (response.ok) {
         await fetchGameDetails()
+        // Clear editing state after successful save
+        setEditingScores(prev => {
+          const newState = { ...prev }
+          delete newState[key]
+          return newState
+        })
       } else {
         const error = await response.json()
         alert(error.error || "Failed to update score")
@@ -340,6 +368,8 @@ export default function GameDetailPage() {
     } catch (error) {
       console.error("Failed to update score:", error)
       alert("Failed to update score")
+    } finally {
+      setSavingScore(null)
     }
   }
 
@@ -866,31 +896,67 @@ export default function GameDetailPage() {
                               const quarterScore = round.quarterScores.find((qs: any) => qs.quarter === quarter)
                               return (
                                 <div key={quarter} className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
-                                  <div className="font-medium text-gray-900 dark:text-white mb-2">
+                                  <div className="font-medium text-gray-900 dark:text-white mb-3">
                                     쿼터 {quarter}
                                   </div>
-                                  <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${round.teams.length}, 1fr)` }}>
-                                    {round.teams.map((team: any) => (
-                                      <div key={team.teamNumber}>
-                                        <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">
-                                          팀 {team.teamNumber}
-                                        </label>
-                                        <input
-                                          type="number"
-                                          min="0"
-                                          value={quarterScore?.scores[team.teamNumber] || 0}
-                                          onChange={(e) =>
-                                            updateScore(
-                                              team.teamNumber,
-                                              quarter,
-                                              parseInt(e.target.value) || 0,
-                                              round.id
-                                            )
-                                          }
-                                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                                        />
-                                      </div>
-                                    ))}
+                                  <div className="space-y-3">
+                                    {round.teams.map((team: any) => {
+                                      const currentScore = quarterScore?.scores[team.teamNumber] || 0
+                                      const editingScore = getEditingScore(round.id, quarter, team.teamNumber, currentScore)
+                                      const scoreKey = getScoreKey(round.id, quarter, team.teamNumber)
+                                      const isSaving = savingScore === scoreKey
+                                      const hasChanges = editingScores[scoreKey] !== undefined && editingScores[scoreKey] !== currentScore
+
+                                      return (
+                                        <div key={team.teamNumber} className="bg-white dark:bg-gray-800 rounded-lg p-3">
+                                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                            팀 {team.teamNumber}
+                                          </label>
+                                          <div className="flex items-center gap-2">
+                                            {/* Minus Button */}
+                                            <button
+                                              onClick={() => setEditingScore(round.id, quarter, team.teamNumber, editingScore - 1)}
+                                              disabled={isSaving || editingScore <= 0}
+                                              className="flex-shrink-0 w-10 h-10 flex items-center justify-center bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-gray-700 dark:text-gray-200 rounded-lg font-bold text-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                            >
+                                              −
+                                            </button>
+
+                                            {/* Score Input */}
+                                            <input
+                                              type="number"
+                                              min="0"
+                                              value={editingScore}
+                                              onChange={(e) => setEditingScore(round.id, quarter, team.teamNumber, parseInt(e.target.value) || 0)}
+                                              disabled={isSaving}
+                                              className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-center text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50"
+                                            />
+
+                                            {/* Plus Button */}
+                                            <button
+                                              onClick={() => setEditingScore(round.id, quarter, team.teamNumber, editingScore + 1)}
+                                              disabled={isSaving}
+                                              className="flex-shrink-0 w-10 h-10 flex items-center justify-center bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-gray-700 dark:text-gray-200 rounded-lg font-bold text-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                            >
+                                              +
+                                            </button>
+
+                                            {/* Save Button */}
+                                            <button
+                                              onClick={() => saveScore(round.id, quarter, team.teamNumber)}
+                                              disabled={!hasChanges || isSaving}
+                                              className={`flex-shrink-0 px-4 py-2 rounded-lg font-medium text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                                                hasChanges
+                                                  ? 'bg-indigo-600 hover:bg-indigo-700 text-white'
+                                                  : 'bg-gray-200 dark:bg-gray-600 text-gray-500 dark:text-gray-400'
+                                              }`}
+                                            >
+                                              {isSaving ? '저장중...' : '저장'}
+                                            </button>
+                                          </div>
+                                        </div>
+                                      )
+                                    })}
                                   </div>
                                 </div>
                               )
@@ -1048,7 +1114,6 @@ export default function GameDetailPage() {
                     <div className="text-sm font-medium text-gray-900 dark:text-white">
                       {attendance.user.name}
                     </div>
-                    <div className="text-sm text-gray-700 dark:text-gray-300">{attendance.user.email}</div>
                   </div>
                 </div>
                 <div className="flex items-center space-x-2">

@@ -328,7 +328,6 @@ export default function TeamSettingsPage() {
                           <span className="ml-2 text-xs text-text-tertiary">(나)</span>
                         )}
                       </div>
-                      <div className="text-sm text-text-secondary">{member.user.email}</div>
                     </div>
                   </div>
 

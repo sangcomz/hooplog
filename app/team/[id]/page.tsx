@@ -383,9 +383,6 @@ export default function TeamPage() {
                     <div className="text-sm font-medium text-text-primary">
                       {member.user.name}
                     </div>
-                    <div className="text-sm text-text-tertiary">
-                      {member.user.email}
-                    </div>
                   </div>
                 </div>
                 <div className="flex items-center space-x-2">
