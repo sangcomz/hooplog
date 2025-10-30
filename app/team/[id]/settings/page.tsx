@@ -5,11 +5,28 @@ import { useEffect, useState } from "react"
 import { useRouter, useParams } from "next/navigation"
 import { ThemeToggle } from "@/app/components/ThemeToggle"
 
+interface User {
+  id: string
+  name: string
+  email: string
+  image?: string
+}
+
+interface Member {
+  id: string
+  userId: string
+  teamId: string
+  role: "MANAGER" | "MEMBER"
+  tier: "A" | "B" | "C"
+  user: User
+}
+
 interface Team {
   id: string
   name: string
   code: string
   description?: string
+  members: Member[]
 }
 
 export default function TeamSettingsPage() {
@@ -23,6 +40,7 @@ export default function TeamSettingsPage() {
   const [team, setTeam] = useState<Team | null>(null)
   const [teamName, setTeamName] = useState("")
   const [teamDescription, setTeamDescription] = useState("")
+  const [updatingMember, setUpdatingMember] = useState<string | null>(null)
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -83,7 +101,7 @@ export default function TeamSettingsPage() {
 
       if (response.ok) {
         alert("팀 정보가 수정되었습니다")
-        router.push(`/team/${teamId}`)
+        await fetchTeam()
       } else {
         const error = await response.json()
         alert(error.error || "Failed to update team")
@@ -93,6 +111,93 @@ export default function TeamSettingsPage() {
       alert("Failed to update team")
     } finally {
       setSaving(false)
+    }
+  }
+
+  const updateMemberTier = async (memberId: string, newTier: "A" | "B" | "C") => {
+    setUpdatingMember(memberId)
+    try {
+      const response = await fetch(`/api/teams/${teamId}/members/${memberId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ tier: newTier }),
+      })
+
+      if (response.ok) {
+        await fetchTeam()
+      } else {
+        const error = await response.json()
+        alert(error.error || "Failed to update member tier")
+      }
+    } catch (error) {
+      console.error("Failed to update member tier:", error)
+      alert("Failed to update member tier")
+    } finally {
+      setUpdatingMember(null)
+    }
+  }
+
+  const updateMemberRole = async (memberId: string, newRole: "MANAGER" | "MEMBER") => {
+    setUpdatingMember(memberId)
+    try {
+      const response = await fetch(`/api/teams/${teamId}/members/${memberId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ role: newRole }),
+      })
+
+      if (response.ok) {
+        await fetchTeam()
+      } else {
+        const error = await response.json()
+        alert(error.error || "Failed to update member role")
+      }
+    } catch (error) {
+      console.error("Failed to update member role:", error)
+      alert("Failed to update member role")
+    } finally {
+      setUpdatingMember(null)
+    }
+  }
+
+  const deleteMember = async (memberId: string, memberName: string) => {
+    if (!confirm(`${memberName}님을 팀에서 제외하시겠습니까?`)) return
+
+    setUpdatingMember(memberId)
+    try {
+      const response = await fetch(`/api/teams/${teamId}/members/${memberId}`, {
+        method: "DELETE",
+      })
+
+      if (response.ok) {
+        await fetchTeam()
+        alert("멤버가 제외되었습니다")
+      } else {
+        const error = await response.json()
+        alert(error.error || "Failed to delete member")
+      }
+    } catch (error) {
+      console.error("Failed to delete member:", error)
+      alert("Failed to delete member")
+    } finally {
+      setUpdatingMember(null)
+    }
+  }
+
+  const getTierColor = (tier: string) => {
+    switch (tier) {
+      case "A":
+        return "bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200"
+      case "B":
+        return "bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200"
+      case "C":
+        return "bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200"
+      default:
+        return "bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200"
     }
   }
 
@@ -186,6 +291,89 @@ export default function TeamSettingsPage() {
             >
               {saving ? "저장 중..." : "저장"}
             </button>
+          </div>
+        </div>
+
+        {/* Members Management Section */}
+        <div className="bg-bg-primary rounded-lg shadow-md mt-8">
+          <div className="px-6 py-4 border-b border-border-primary">
+            <h2 className="text-xl font-semibold text-text-primary">
+              팀 멤버 관리 ({team.members.length}명)
+            </h2>
+          </div>
+          <div className="divide-y divide-border-primary">
+            {team.members.map((member) => (
+              <div key={member.id} className="px-6 py-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-4">
+                    <div className="flex-shrink-0">
+                      {member.user.image ? (
+                        <img
+                          className="h-12 w-12 rounded-full"
+                          src={member.user.image}
+                          alt={member.user.name || ""}
+                        />
+                      ) : (
+                        <div className="h-12 w-12 rounded-full bg-bg-tertiary flex items-center justify-center">
+                          <span className="text-sm font-medium text-text-secondary">
+                            {member.user.name?.charAt(0).toUpperCase() || "?"}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <div className="text-sm font-medium text-text-primary">
+                        {member.user.name}
+                        {member.userId === session?.user?.id && (
+                          <span className="ml-2 text-xs text-text-tertiary">(나)</span>
+                        )}
+                      </div>
+                      <div className="text-sm text-text-secondary">{member.user.email}</div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center space-x-3">
+                    {/* Tier Selector */}
+                    <div>
+                      <label className="block text-xs text-text-tertiary mb-1">티어</label>
+                      <select
+                        value={member.tier}
+                        onChange={(e) => updateMemberTier(member.id, e.target.value as "A" | "B" | "C")}
+                        disabled={updatingMember === member.id}
+                        className="px-3 py-1.5 border border-border-primary rounded-md text-sm bg-bg-primary text-text-primary focus:outline-none focus:ring-2 focus:ring-primary-solid disabled:opacity-50"
+                      >
+                        <option value="A">티어 A</option>
+                        <option value="B">티어 B</option>
+                        <option value="C">티어 C</option>
+                      </select>
+                    </div>
+
+                    {/* Role Selector */}
+                    <div>
+                      <label className="block text-xs text-text-tertiary mb-1">권한</label>
+                      <select
+                        value={member.role}
+                        onChange={(e) => updateMemberRole(member.id, e.target.value as "MANAGER" | "MEMBER")}
+                        disabled={updatingMember === member.id}
+                        className="px-3 py-1.5 border border-border-primary rounded-md text-sm bg-bg-primary text-text-primary focus:outline-none focus:ring-2 focus:ring-primary-solid disabled:opacity-50"
+                      >
+                        <option value="MANAGER">매니저</option>
+                        <option value="MEMBER">멤버</option>
+                      </select>
+                    </div>
+
+                    {/* Delete Button */}
+                    <button
+                      onClick={() => deleteMember(member.id, member.user.name || "멤버")}
+                      disabled={updatingMember === member.id}
+                      className="mt-5 text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 text-sm font-medium disabled:opacity-50"
+                    >
+                      제외
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </div>
