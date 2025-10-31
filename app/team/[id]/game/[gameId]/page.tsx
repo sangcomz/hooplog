@@ -785,6 +785,16 @@ export default function GameDetailPage() {
                 })
               })
 
+              // Ensure all teams have a score (default to 0)
+              round.teams.forEach((team: any) => {
+                if (totalScores[team.teamNumber] === undefined) {
+                  totalScores[team.teamNumber] = 0
+                }
+              })
+
+              // Sort team numbers for consistent display
+              const sortedTeamNumbers = Object.keys(totalScores).map(Number).sort((a, b) => a - b)
+
               return (
                 <div
                   key={round.id}
@@ -805,17 +815,14 @@ export default function GameDetailPage() {
                           </span>
                         )}
                       </h3>
-                      <span className="text-sm text-gray-500 dark:text-gray-400">
-                        {new Date(round.createdAt).toLocaleString("ko-KR")}
-                      </span>
                     </div>
                     <div className="flex items-center space-x-4">
-                      {Object.keys(totalScores).length > 0 && (
+                      {sortedTeamNumbers.length > 0 && (
                         <div className="flex items-center space-x-2 text-sm font-medium">
-                          {Object.entries(totalScores).map(([teamNum, score], idx) => (
+                          {sortedTeamNumbers.map((teamNum, idx) => (
                             <span key={teamNum}>
                               {idx > 0 && " : "}
-                              <span className="text-gray-900 dark:text-white">{score}</span>
+                              <span className="text-gray-900 dark:text-white">{totalScores[teamNum]}</span>
                             </span>
                           ))}
                         </div>
@@ -881,12 +888,12 @@ export default function GameDetailPage() {
                       {/* Quarter Scores */}
                       {isManager && (
                         <div>
-                          <div className="flex items-center justify-between mb-3">
+                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
                             <h4 className="text-md font-semibold text-gray-900 dark:text-white">쿼터별 점수</h4>
                             <button
                               onClick={() => addQuarterToRound(round.id, round.maxQuarter || 1)}
                               disabled={updating}
-                              className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded-md text-sm font-medium disabled:opacity-50"
+                              className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 sm:py-1 rounded-md text-sm font-medium disabled:opacity-50 w-full sm:w-auto"
                             >
                               + 쿼터 추가
                             </button>
@@ -912,40 +919,42 @@ export default function GameDetailPage() {
                                           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                                             팀 {team.teamNumber}
                                           </label>
-                                          <div className="flex items-center gap-2">
-                                            {/* Minus Button */}
-                                            <button
-                                              onClick={() => setEditingScore(round.id, quarter, team.teamNumber, editingScore - 1)}
-                                              disabled={isSaving || editingScore <= 0}
-                                              className="flex-shrink-0 w-10 h-10 flex items-center justify-center bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-gray-700 dark:text-gray-200 rounded-lg font-bold text-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                                            >
-                                              −
-                                            </button>
+                                          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full">
+                                            <div className="flex items-stretch gap-2 w-full">
+                                              {/* Minus Button */}
+                                              <button
+                                                onClick={() => setEditingScore(round.id, quarter, team.teamNumber, editingScore - 1)}
+                                                disabled={isSaving || editingScore <= 0}
+                                                className="flex-shrink-0 w-12 h-12 flex items-center justify-center bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-gray-700 dark:text-gray-200 rounded-lg font-bold text-xl disabled:opacity-50 disabled:cursor-not-allowed transition-colors touch-manipulation"
+                                              >
+                                                −
+                                              </button>
 
-                                            {/* Score Input */}
-                                            <input
-                                              type="number"
-                                              min="0"
-                                              value={editingScore}
-                                              onChange={(e) => setEditingScore(round.id, quarter, team.teamNumber, parseInt(e.target.value) || 0)}
-                                              disabled={isSaving}
-                                              className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-center text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50"
-                                            />
+                                              {/* Score Input */}
+                                              <input
+                                                type="number"
+                                                min="0"
+                                                value={editingScore}
+                                                onChange={(e) => setEditingScore(round.id, quarter, team.teamNumber, parseInt(e.target.value) || 0)}
+                                                disabled={isSaving}
+                                                className="flex-1 min-w-0 px-2 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-center text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50"
+                                              />
 
-                                            {/* Plus Button */}
-                                            <button
-                                              onClick={() => setEditingScore(round.id, quarter, team.teamNumber, editingScore + 1)}
-                                              disabled={isSaving}
-                                              className="flex-shrink-0 w-10 h-10 flex items-center justify-center bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-gray-700 dark:text-gray-200 rounded-lg font-bold text-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                                            >
-                                              +
-                                            </button>
+                                              {/* Plus Button */}
+                                              <button
+                                                onClick={() => setEditingScore(round.id, quarter, team.teamNumber, editingScore + 1)}
+                                                disabled={isSaving}
+                                                className="flex-shrink-0 w-12 h-12 flex items-center justify-center bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-gray-700 dark:text-gray-200 rounded-lg font-bold text-xl disabled:opacity-50 disabled:cursor-not-allowed transition-colors touch-manipulation"
+                                              >
+                                                +
+                                              </button>
+                                            </div>
 
                                             {/* Save Button */}
                                             <button
                                               onClick={() => saveScore(round.id, quarter, team.teamNumber)}
                                               disabled={!hasChanges || isSaving}
-                                              className={`flex-shrink-0 px-4 py-2 rounded-lg font-medium text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                                              className={`flex-shrink-0 px-4 py-2 rounded-lg font-medium text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto ${
                                                 hasChanges
                                                   ? 'bg-indigo-600 hover:bg-indigo-700 text-white'
                                                   : 'bg-gray-200 dark:bg-gray-600 text-gray-500 dark:text-gray-400'
