@@ -790,9 +790,11 @@ export default function GameDetailPage() {
                 teamsCount: round.teams?.length || 0
               })
 
-              // Calculate total scores for this round
+              // Calculate scores for this round
               const totalScores: { [teamNumber: number]: number } = {}
               const teamRecords: { [teamNumber: number]: { wins: number, losses: number, draws: number } } = {}
+              // Track scores per match pair (e.g., "1-2" for team1 vs team2)
+              const matchPairScores: { [pairKey: string]: { team1: number, team2: number, score1: number, score2: number } } = {}
 
               // Initialize all teams
               round.teams.forEach((team: any) => {
@@ -803,8 +805,31 @@ export default function GameDetailPage() {
               // Sum up all quarter scores
               round.quarterScores.forEach((qs: any) => {
                 if (qs.matches) {
-                  // New format: matches array - sum up all scores per team
+                  // New format: matches array - sum up scores per match pair
                   qs.matches.forEach((match: Match) => {
+                    const pairKey = match.team1 < match.team2
+                      ? `${match.team1}-${match.team2}`
+                      : `${match.team2}-${match.team1}`
+
+                    if (!matchPairScores[pairKey]) {
+                      matchPairScores[pairKey] = {
+                        team1: Math.min(match.team1, match.team2),
+                        team2: Math.max(match.team1, match.team2),
+                        score1: 0,
+                        score2: 0
+                      }
+                    }
+
+                    // Add scores to the correct team
+                    if (match.team1 === matchPairScores[pairKey].team1) {
+                      matchPairScores[pairKey].score1 += match.score1
+                      matchPairScores[pairKey].score2 += match.score2
+                    } else {
+                      matchPairScores[pairKey].score1 += match.score2
+                      matchPairScores[pairKey].score2 += match.score1
+                    }
+
+                    // Also track total scores per team for legacy display
                     totalScores[match.team1] = (totalScores[match.team1] || 0) + match.score1
                     totalScores[match.team2] = (totalScores[match.team2] || 0) + match.score2
                   })
@@ -817,24 +842,40 @@ export default function GameDetailPage() {
                 }
               })
 
-              // Calculate win/loss records based on total scores (round-based)
-              const teamNumbers = round.teams.map((team: any) => team.teamNumber)
-              for (let i = 0; i < teamNumbers.length; i++) {
-                for (let j = i + 1; j < teamNumbers.length; j++) {
-                  const team1 = teamNumbers[i]
-                  const team2 = teamNumbers[j]
-                  const score1 = totalScores[team1] || 0
-                  const score2 = totalScores[team2] || 0
+              // Calculate win/loss records based on match pair scores (round-based)
+              Object.values(matchPairScores).forEach(pair => {
+                if (pair.score1 > pair.score2) {
+                  teamRecords[pair.team1].wins++
+                  teamRecords[pair.team2].losses++
+                } else if (pair.score2 > pair.score1) {
+                  teamRecords[pair.team2].wins++
+                  teamRecords[pair.team1].losses++
+                } else {
+                  teamRecords[pair.team1].draws++
+                  teamRecords[pair.team2].draws++
+                }
+              })
 
-                  if (score1 > score2) {
-                    teamRecords[team1].wins++
-                    teamRecords[team2].losses++
-                  } else if (score2 > score1) {
-                    teamRecords[team2].wins++
-                    teamRecords[team1].losses++
-                  } else {
-                    teamRecords[team1].draws++
-                    teamRecords[team2].draws++
+              // For legacy format, calculate win/loss from total scores
+              if (Object.keys(matchPairScores).length === 0) {
+                const teamNumbers = round.teams.map((team: any) => team.teamNumber)
+                for (let i = 0; i < teamNumbers.length; i++) {
+                  for (let j = i + 1; j < teamNumbers.length; j++) {
+                    const team1 = teamNumbers[i]
+                    const team2 = teamNumbers[j]
+                    const score1 = totalScores[team1] || 0
+                    const score2 = totalScores[team2] || 0
+
+                    if (score1 > score2) {
+                      teamRecords[team1].wins++
+                      teamRecords[team2].losses++
+                    } else if (score2 > score1) {
+                      teamRecords[team2].wins++
+                      teamRecords[team1].losses++
+                    } else {
+                      teamRecords[team1].draws++
+                      teamRecords[team2].draws++
+                    }
                   }
                 }
               }
@@ -1263,17 +1304,32 @@ export default function GameDetailPage() {
                                 {/* Total scores breakdown */}
                                 {(hasMatchFormat || teamCount >= 2) && (
                                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 mt-3 text-sm">
-                                    {sortedTeamNumbers.map((team1, i) =>
-                                      sortedTeamNumbers.slice(i + 1).map(team2 => (
-                                        <div key={`${team1}-${team2}`} className="bg-gray-50 dark:bg-gray-700 rounded px-3 py-2">
+                                    {Object.keys(matchPairScores).length > 0 ? (
+                                      // New format: show match pair scores
+                                      Object.values(matchPairScores).map(pair => (
+                                        <div key={`${pair.team1}-${pair.team2}`} className="bg-gray-50 dark:bg-gray-700 rounded px-3 py-2">
                                           <span className="text-gray-700 dark:text-gray-300">
-                                            팀 {team1} vs 팀 {team2}
+                                            팀 {pair.team1} vs 팀 {pair.team2}
                                           </span>
                                           <span className="ml-2 font-semibold text-gray-900 dark:text-white">
-                                            {totalScores[team1]}:{totalScores[team2]}
+                                            {pair.score1}:{pair.score2}
                                           </span>
                                         </div>
                                       ))
+                                    ) : (
+                                      // Legacy format: show total scores
+                                      sortedTeamNumbers.map((team1, i) =>
+                                        sortedTeamNumbers.slice(i + 1).map(team2 => (
+                                          <div key={`${team1}-${team2}`} className="bg-gray-50 dark:bg-gray-700 rounded px-3 py-2">
+                                            <span className="text-gray-700 dark:text-gray-300">
+                                              팀 {team1} vs 팀 {team2}
+                                            </span>
+                                            <span className="ml-2 font-semibold text-gray-900 dark:text-white">
+                                              {totalScores[team1]}:{totalScores[team2]}
+                                            </span>
+                                          </div>
+                                        ))
+                                      )
                                     )}
                                   </div>
                                 )}
