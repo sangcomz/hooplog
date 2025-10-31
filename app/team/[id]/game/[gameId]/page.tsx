@@ -1168,94 +1168,115 @@ export default function GameDetailPage() {
                           {/* Winner Display */}
                           {Object.keys(totalScores).length > 0 && (
                             <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-600">
-                              <div className="text-center">
-                                {(() => {
-                                  if (hasMatchFormat && teamCount >= 3) {
-                                    // 3+ teams: Show winner based on most wins
-                                    const records = Object.entries(teamRecords).map(([teamNum, record]) => ({
-                                      teamNum: parseInt(teamNum),
-                                      ...record
-                                    }))
-                                    const maxWins = Math.max(...records.map(r => r.wins))
-                                    const winners = records.filter(r => r.wins === maxWins)
+                              <div className="text-center space-y-3">
+                                {/* Winner announcement */}
+                                <div>
+                                  {(() => {
+                                    if (hasMatchFormat && teamCount >= 3) {
+                                      // 3+ teams: Show winner based on most wins
+                                      const records = Object.entries(teamRecords).map(([teamNum, record]) => ({
+                                        teamNum: parseInt(teamNum),
+                                        ...record
+                                      }))
+                                      const maxWins = Math.max(...records.map(r => r.wins))
+                                      const winners = records.filter(r => r.wins === maxWins)
 
-                                    if (winners.length > 1) {
-                                      return (
-                                        <span className="text-lg font-bold text-yellow-600 dark:text-yellow-400">
-                                          공동 1위! {winners.map(w => `팀 ${w.teamNum} (${w.wins}승)`).join(', ')}
-                                        </span>
-                                      )
-                                    } else if (winners.length === 1) {
-                                      const winner = winners[0]
-                                      return (
-                                        <span className="text-lg font-bold text-green-600 dark:text-green-400">
-                                          팀 {winner.teamNum} 승리! ({winner.wins}승 {winner.losses}패)
-                                        </span>
-                                      )
-                                    }
-                                  } else if (hasMatchFormat && teamCount === 2) {
-                                    // 2 teams: Show winner based on wins
-                                    const team1 = sortedTeamNumbers[0]
-                                    const team2 = sortedTeamNumbers[1]
-                                    const record1 = teamRecords[team1]
-                                    const record2 = teamRecords[team2]
+                                      if (winners.length > 1) {
+                                        return (
+                                          <span className="text-lg font-bold text-yellow-600 dark:text-yellow-400">
+                                            공동 1위! {winners.map(w => `팀 ${w.teamNum} (${w.wins}승)`).join(', ')}
+                                          </span>
+                                        )
+                                      } else if (winners.length === 1) {
+                                        const winner = winners[0]
+                                        return (
+                                          <span className="text-lg font-bold text-green-600 dark:text-green-400">
+                                            팀 {winner.teamNum} 승리! ({winner.wins}승 {winner.losses}패)
+                                          </span>
+                                        )
+                                      }
+                                    } else if (hasMatchFormat && teamCount === 2) {
+                                      // 2 teams: Show winner based on wins
+                                      const team1 = sortedTeamNumbers[0]
+                                      const team2 = sortedTeamNumbers[1]
+                                      const record1 = teamRecords[team1]
+                                      const record2 = teamRecords[team2]
 
-                                    if (record1.wins > record2.wins) {
-                                      return (
-                                        <span className="text-lg font-bold text-green-600 dark:text-green-400">
-                                          팀 {team1} 승리! ({record1.wins}승 {record1.losses}패)
-                                        </span>
-                                      )
-                                    } else if (record2.wins > record1.wins) {
-                                      return (
-                                        <span className="text-lg font-bold text-green-600 dark:text-green-400">
-                                          팀 {team2} 승리! ({record2.wins}승 {record2.losses}패)
-                                        </span>
-                                      )
-                                    } else if (totalScores[team1] > totalScores[team2]) {
-                                      return (
-                                        <span className="text-lg font-bold text-green-600 dark:text-green-400">
-                                          팀 {team1} 승리! (득점 {totalScores[team1]} - {totalScores[team2]})
-                                        </span>
-                                      )
-                                    } else if (totalScores[team2] > totalScores[team1]) {
-                                      return (
-                                        <span className="text-lg font-bold text-green-600 dark:text-green-400">
-                                          팀 {team2} 승리! (득점 {totalScores[team2]} - {totalScores[team1]})
-                                        </span>
-                                      )
+                                      if (record1.wins > record2.wins) {
+                                        return (
+                                          <span className="text-lg font-bold text-green-600 dark:text-green-400">
+                                            팀 {team1} 승리! ({record1.wins}승 {record1.losses}패)
+                                          </span>
+                                        )
+                                      } else if (record2.wins > record1.wins) {
+                                        return (
+                                          <span className="text-lg font-bold text-green-600 dark:text-green-400">
+                                            팀 {team2} 승리! ({record2.wins}승 {record2.losses}패)
+                                          </span>
+                                        )
+                                      } else if (totalScores[team1] > totalScores[team2]) {
+                                        return (
+                                          <span className="text-lg font-bold text-green-600 dark:text-green-400">
+                                            팀 {team1} 승리! (득점 {totalScores[team1]} - {totalScores[team2]})
+                                          </span>
+                                        )
+                                      } else if (totalScores[team2] > totalScores[team1]) {
+                                        return (
+                                          <span className="text-lg font-bold text-green-600 dark:text-green-400">
+                                            팀 {team2} 승리! (득점 {totalScores[team2]} - {totalScores[team1]})
+                                          </span>
+                                        )
+                                      } else {
+                                        return (
+                                          <span className="text-lg font-bold text-yellow-600 dark:text-yellow-400">
+                                            무승부! ({record1.wins}승 {record1.losses}패, {totalScores[team1]}점)
+                                          </span>
+                                        )
+                                      }
                                     } else {
-                                      return (
-                                        <span className="text-lg font-bold text-yellow-600 dark:text-yellow-400">
-                                          무승부! ({record1.wins}승 {record1.losses}패, {totalScores[team1]}점)
-                                        </span>
-                                      )
-                                    }
-                                  } else {
-                                    // Legacy format: Show winner based on total score
-                                    const scores = Object.entries(totalScores).map(([teamNum, score]) => ({
-                                      teamNum: parseInt(teamNum),
-                                      score: score as number
-                                    }))
-                                    const maxScore = Math.max(...scores.map(s => s.score))
-                                    const winners = scores.filter(s => s.score === maxScore)
+                                      // Legacy format: Show winner based on total score
+                                      const scores = Object.entries(totalScores).map(([teamNum, score]) => ({
+                                        teamNum: parseInt(teamNum),
+                                        score: score as number
+                                      }))
+                                      const maxScore = Math.max(...scores.map(s => s.score))
+                                      const winners = scores.filter(s => s.score === maxScore)
 
-                                    if (winners.length > 1) {
-                                      return (
-                                        <span className="text-lg font-bold text-yellow-600 dark:text-yellow-400">
-                                          무승부 ({winners.map(w => `팀 ${w.teamNum}`).join(', ')}: {maxScore}점)
-                                        </span>
-                                      )
-                                    } else if (winners.length === 1) {
-                                      return (
-                                        <span className="text-lg font-bold text-green-600 dark:text-green-400">
-                                          팀 {winners[0].teamNum} 승리! ({maxScore}점)
-                                        </span>
-                                      )
+                                      if (winners.length > 1) {
+                                        return (
+                                          <span className="text-lg font-bold text-yellow-600 dark:text-yellow-400">
+                                            무승부 ({winners.map(w => `팀 ${w.teamNum}`).join(', ')}: {maxScore}점)
+                                          </span>
+                                        )
+                                      } else if (winners.length === 1) {
+                                        return (
+                                          <span className="text-lg font-bold text-green-600 dark:text-green-400">
+                                            팀 {winners[0].teamNum} 승리! ({maxScore}점)
+                                          </span>
+                                        )
+                                      }
                                     }
-                                  }
-                                  return null
-                                })()}
+                                    return null
+                                  })()}
+                                </div>
+
+                                {/* Total scores breakdown */}
+                                {(hasMatchFormat || teamCount >= 2) && (
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 mt-3 text-sm">
+                                    {sortedTeamNumbers.map((team1, i) =>
+                                      sortedTeamNumbers.slice(i + 1).map(team2 => (
+                                        <div key={`${team1}-${team2}`} className="bg-gray-50 dark:bg-gray-700 rounded px-3 py-2">
+                                          <span className="text-gray-700 dark:text-gray-300">
+                                            팀 {team1} vs 팀 {team2}
+                                          </span>
+                                          <span className="ml-2 font-semibold text-gray-900 dark:text-white">
+                                            {totalScores[team1]}:{totalScores[team2]}
+                                          </span>
+                                        </div>
+                                      ))
+                                    )}
+                                  </div>
+                                )}
                               </div>
                             </div>
                           )}
