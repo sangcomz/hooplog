@@ -57,7 +57,7 @@ export async function POST(
 
   try {
     const { id: teamId, gameId } = await params
-    const { teamNumber, quarter, score, roundId } = await request.json()
+    const { teamNumber, quarter, score, roundId, matchIndex } = await request.json()
 
     if (
       teamNumber === undefined ||
@@ -110,20 +110,40 @@ export async function POST(
         return NextResponse.json({ error: "Round not found" }, { status: 404 })
       }
 
-      // Find or create quarter score entry
+      // Find quarter score entry
       const quarterScoreIndex = rounds[roundIndex].quarterScores.findIndex(
         (qs: any) => qs.quarter === quarter
       )
 
       if (quarterScoreIndex === -1) {
-        // Create new quarter score
-        rounds[roundIndex].quarterScores.push({
-          quarter,
-          scores: { [teamNumber]: score }
-        })
+        return NextResponse.json({ error: "Quarter not found" }, { status: 404 })
+      }
+
+      const quarterScore = rounds[roundIndex].quarterScores[quarterScoreIndex]
+
+      // Find the match and update the score
+      if (matchIndex !== undefined && quarterScore.matches) {
+        // New format: multiple matches per quarter
+        const match = quarterScore.matches[matchIndex]
+        if (!match) {
+          return NextResponse.json({ error: "Match not found" }, { status: 404 })
+        }
+
+        // Update the appropriate team's score
+        if (match.team1 === teamNumber) {
+          match.score1 = score
+        } else if (match.team2 === teamNumber) {
+          match.score2 = score
+        } else {
+          return NextResponse.json({ error: "Team not found in match" }, { status: 404 })
+        }
       } else {
-        // Update existing quarter score
-        rounds[roundIndex].quarterScores[quarterScoreIndex].scores[teamNumber] = score
+        // Legacy format: single match per quarter (2 teams only)
+        // For backward compatibility
+        if (!quarterScore.scores) {
+          quarterScore.scores = {}
+        }
+        quarterScore.scores[teamNumber] = score
       }
 
       // Save updated rounds

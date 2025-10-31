@@ -46,6 +46,13 @@ interface Score {
   updatedAt: number
 }
 
+interface Match {
+  team1: number
+  team2: number
+  score1: number
+  score2: number
+}
+
 interface Comment {
   id: string
   gameId: string
@@ -323,34 +330,41 @@ export default function GameDetailPage() {
     }
   }
 
-  const getScoreKey = (roundId: string, quarter: number, teamNumber: number) => {
-    return `${roundId}-${quarter}-${teamNumber}`
+  const getScoreKey = (roundId: string, quarter: number, teamNumber: number, matchIndex?: number) => {
+    return matchIndex !== undefined
+      ? `${roundId}-${quarter}-${matchIndex}-${teamNumber}`
+      : `${roundId}-${quarter}-${teamNumber}`
   }
 
-  const getEditingScore = (roundId: string, quarter: number, teamNumber: number, defaultScore: number) => {
-    const key = getScoreKey(roundId, quarter, teamNumber)
+  const getEditingScore = (roundId: string, quarter: number, teamNumber: number, defaultScore: number, matchIndex?: number) => {
+    const key = getScoreKey(roundId, quarter, teamNumber, matchIndex)
     return editingScores[key] !== undefined ? editingScores[key] : defaultScore
   }
 
-  const setEditingScore = (roundId: string, quarter: number, teamNumber: number, score: number) => {
-    const key = getScoreKey(roundId, quarter, teamNumber)
+  const setEditingScore = (roundId: string, quarter: number, teamNumber: number, score: number, matchIndex?: number) => {
+    const key = getScoreKey(roundId, quarter, teamNumber, matchIndex)
     setEditingScores(prev => ({ ...prev, [key]: Math.max(0, score) }))
   }
 
-  const saveScore = async (roundId: string, quarter: number, teamNumber: number) => {
-    const key = getScoreKey(roundId, quarter, teamNumber)
+  const saveScore = async (roundId: string, quarter: number, teamNumber: number, matchIndex?: number) => {
+    const key = getScoreKey(roundId, quarter, teamNumber, matchIndex)
     const score = editingScores[key]
 
     if (score === undefined) return
 
     setSavingScore(key)
     try {
+      const body: any = { teamNumber, quarter, score, roundId }
+      if (matchIndex !== undefined) {
+        body.matchIndex = matchIndex
+      }
+
       const response = await fetch(`/api/teams/${teamId}/games/${gameId}/scores`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ teamNumber, quarter, score, roundId }),
+        body: JSON.stringify(body),
       })
 
       if (response.ok) {
@@ -778,22 +792,59 @@ export default function GameDetailPage() {
 
               // Calculate total scores for this round
               const totalScores: { [teamNumber: number]: number } = {}
-              round.quarterScores.forEach((qs: any) => {
-                Object.entries(qs.scores).forEach(([teamNum, score]: [string, any]) => {
-                  const num = parseInt(teamNum)
-                  totalScores[num] = (totalScores[num] || 0) + score
-                })
+              const teamRecords: { [teamNumber: number]: { wins: number, losses: number, draws: number } } = {}
+
+              // Initialize all teams
+              round.teams.forEach((team: any) => {
+                totalScores[team.teamNumber] = 0
+                teamRecords[team.teamNumber] = { wins: 0, losses: 0, draws: 0 }
               })
 
-              // Ensure all teams have a score (default to 0)
-              round.teams.forEach((team: any) => {
-                if (totalScores[team.teamNumber] === undefined) {
-                  totalScores[team.teamNumber] = 0
+              // Sum up all quarter scores
+              round.quarterScores.forEach((qs: any) => {
+                if (qs.matches) {
+                  // New format: matches array - sum up all scores per team
+                  qs.matches.forEach((match: Match) => {
+                    totalScores[match.team1] = (totalScores[match.team1] || 0) + match.score1
+                    totalScores[match.team2] = (totalScores[match.team2] || 0) + match.score2
+                  })
+                } else if (qs.scores) {
+                  // Legacy format: scores object
+                  Object.entries(qs.scores).forEach(([teamNum, score]: [string, any]) => {
+                    const num = parseInt(teamNum)
+                    totalScores[num] = (totalScores[num] || 0) + score
+                  })
                 }
               })
 
+              // Calculate win/loss records based on total scores (round-based)
+              const teamNumbers = round.teams.map((team: any) => team.teamNumber)
+              for (let i = 0; i < teamNumbers.length; i++) {
+                for (let j = i + 1; j < teamNumbers.length; j++) {
+                  const team1 = teamNumbers[i]
+                  const team2 = teamNumbers[j]
+                  const score1 = totalScores[team1] || 0
+                  const score2 = totalScores[team2] || 0
+
+                  if (score1 > score2) {
+                    teamRecords[team1].wins++
+                    teamRecords[team2].losses++
+                  } else if (score2 > score1) {
+                    teamRecords[team2].wins++
+                    teamRecords[team1].losses++
+                  } else {
+                    teamRecords[team1].draws++
+                    teamRecords[team2].draws++
+                  }
+                }
+              }
+
               // Sort team numbers for consistent display
               const sortedTeamNumbers = Object.keys(totalScores).map(Number).sort((a, b) => a - b)
+
+              // Check if using new match format
+              const hasMatchFormat = round.quarterScores.some((qs: any) => qs.matches && qs.matches.length > 0)
+              const teamCount = round.teams.length
 
               return (
                 <div
@@ -818,13 +869,59 @@ export default function GameDetailPage() {
                     </div>
                     <div className="flex items-center space-x-4">
                       {sortedTeamNumbers.length > 0 && (
-                        <div className="flex items-center space-x-2 text-sm font-medium">
-                          {sortedTeamNumbers.map((teamNum, idx) => (
-                            <span key={teamNum}>
-                              {idx > 0 && " : "}
-                              <span className="text-gray-900 dark:text-white">{totalScores[teamNum]}</span>
-                            </span>
-                          ))}
+                        <div className="flex items-center gap-3 text-sm font-medium">
+                          {hasMatchFormat && teamCount >= 3 ? (
+                            // 3+ teams: Show win/loss records
+                            sortedTeamNumbers.map((teamNum) => {
+                              const record = teamRecords[teamNum]
+                              return (
+                                <div key={teamNum} className="flex items-center gap-1">
+                                  <span className="text-gray-600 dark:text-gray-400">팀 {teamNum}:</span>
+                                  <span className="text-green-600 dark:text-green-400">{record.wins}승</span>
+                                  {record.draws > 0 && (
+                                    <span className="text-gray-600 dark:text-gray-400">{record.draws}무</span>
+                                  )}
+                                  <span className="text-red-600 dark:text-red-400">{record.losses}패</span>
+                                </div>
+                              )
+                            })
+                          ) : hasMatchFormat && teamCount === 2 ? (
+                            // 2 teams with match format: Show wins or total score
+                            (() => {
+                              const team1 = sortedTeamNumbers[0]
+                              const team2 = sortedTeamNumbers[1]
+                              const record1 = teamRecords[team1]
+                              const record2 = teamRecords[team2]
+
+                              // If there's a clear winner, show wins
+                              if (record1.wins !== record2.wins) {
+                                return (
+                                  <>
+                                    <span className="text-gray-900 dark:text-white">
+                                      {record1.wins} - {record2.wins}
+                                    </span>
+                                  </>
+                                )
+                              } else {
+                                // If tied on wins, show total scores
+                                return (
+                                  <>
+                                    <span className="text-gray-900 dark:text-white">
+                                      {totalScores[team1]} : {totalScores[team2]}
+                                    </span>
+                                  </>
+                                )
+                              }
+                            })()
+                          ) : (
+                            // Legacy format: Show total scores
+                            sortedTeamNumbers.map((teamNum, idx) => (
+                              <span key={teamNum}>
+                                {idx > 0 && " : "}
+                                <span className="text-gray-900 dark:text-white">{totalScores[teamNum]}</span>
+                              </span>
+                            ))
+                          )}
                         </div>
                       )}
                       <svg
@@ -901,71 +998,167 @@ export default function GameDetailPage() {
                           <div className="space-y-3">
                             {Array.from({ length: round.maxQuarter || 1 }, (_, i) => i + 1).map((quarter) => {
                               const quarterScore = round.quarterScores.find((qs: any) => qs.quarter === quarter)
+                              const hasMatches = quarterScore?.matches && quarterScore.matches.length > 0
+
                               return (
                                 <div key={quarter} className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
                                   <div className="font-medium text-gray-900 dark:text-white mb-3">
                                     쿼터 {quarter}
                                   </div>
                                   <div className="space-y-3">
-                                    {round.teams.map((team: any) => {
-                                      const currentScore = quarterScore?.scores[team.teamNumber] || 0
-                                      const editingScore = getEditingScore(round.id, quarter, team.teamNumber, currentScore)
-                                      const scoreKey = getScoreKey(round.id, quarter, team.teamNumber)
-                                      const isSaving = savingScore === scoreKey
-                                      const hasChanges = editingScores[scoreKey] !== undefined && editingScores[scoreKey] !== currentScore
-
-                                      return (
-                                        <div key={team.teamNumber} className="bg-white dark:bg-gray-800 rounded-lg p-3">
-                                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                            팀 {team.teamNumber}
-                                          </label>
-                                          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full">
-                                            <div className="flex items-stretch gap-2 w-full">
-                                              {/* Minus Button */}
-                                              <button
-                                                onClick={() => setEditingScore(round.id, quarter, team.teamNumber, editingScore - 1)}
-                                                disabled={isSaving || editingScore <= 0}
-                                                className="flex-shrink-0 w-12 h-12 flex items-center justify-center bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-gray-700 dark:text-gray-200 rounded-lg font-bold text-xl disabled:opacity-50 disabled:cursor-not-allowed transition-colors touch-manipulation"
-                                              >
-                                                −
-                                              </button>
-
-                                              {/* Score Input */}
-                                              <input
-                                                type="number"
-                                                min="0"
-                                                value={editingScore}
-                                                onChange={(e) => setEditingScore(round.id, quarter, team.teamNumber, parseInt(e.target.value) || 0)}
-                                                disabled={isSaving}
-                                                className="flex-1 min-w-0 px-2 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-center text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50"
-                                              />
-
-                                              {/* Plus Button */}
-                                              <button
-                                                onClick={() => setEditingScore(round.id, quarter, team.teamNumber, editingScore + 1)}
-                                                disabled={isSaving}
-                                                className="flex-shrink-0 w-12 h-12 flex items-center justify-center bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-gray-700 dark:text-gray-200 rounded-lg font-bold text-xl disabled:opacity-50 disabled:cursor-not-allowed transition-colors touch-manipulation"
-                                              >
-                                                +
-                                              </button>
+                                    {hasMatches ? (
+                                      // New format: display matches
+                                      quarterScore.matches.map((match: Match, matchIndex: number) => (
+                                        <div key={matchIndex} className="bg-white dark:bg-gray-800 rounded-lg p-3">
+                                          <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 text-center">
+                                            팀 {match.team1} vs 팀 {match.team2}
+                                          </div>
+                                          <div className="grid grid-cols-2 gap-3">
+                                            {/* Team 1 Score */}
+                                            <div>
+                                              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1 text-center">
+                                                팀 {match.team1}
+                                              </label>
+                                              <div className="flex items-stretch gap-2">
+                                                <button
+                                                  onClick={() => setEditingScore(round.id, quarter, match.team1, getEditingScore(round.id, quarter, match.team1, match.score1, matchIndex) - 1, matchIndex)}
+                                                  disabled={savingScore === getScoreKey(round.id, quarter, match.team1, matchIndex) || getEditingScore(round.id, quarter, match.team1, match.score1, matchIndex) <= 0}
+                                                  className="flex-shrink-0 w-10 h-10 flex items-center justify-center bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-gray-700 dark:text-gray-200 rounded-lg font-bold text-xl disabled:opacity-50 disabled:cursor-not-allowed transition-colors touch-manipulation"
+                                                >
+                                                  −
+                                                </button>
+                                                <input
+                                                  type="number"
+                                                  min="0"
+                                                  value={getEditingScore(round.id, quarter, match.team1, match.score1, matchIndex)}
+                                                  onChange={(e) => setEditingScore(round.id, quarter, match.team1, parseInt(e.target.value) || 0, matchIndex)}
+                                                  disabled={savingScore === getScoreKey(round.id, quarter, match.team1, matchIndex)}
+                                                  className="flex-1 min-w-0 px-2 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-center text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50"
+                                                />
+                                                <button
+                                                  onClick={() => setEditingScore(round.id, quarter, match.team1, getEditingScore(round.id, quarter, match.team1, match.score1, matchIndex) + 1, matchIndex)}
+                                                  disabled={savingScore === getScoreKey(round.id, quarter, match.team1, matchIndex)}
+                                                  className="flex-shrink-0 w-10 h-10 flex items-center justify-center bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-gray-700 dark:text-gray-200 rounded-lg font-bold text-xl disabled:opacity-50 disabled:cursor-not-allowed transition-colors touch-manipulation"
+                                                >
+                                                  +
+                                                </button>
+                                              </div>
                                             </div>
 
-                                            {/* Save Button */}
+                                            {/* Team 2 Score */}
+                                            <div>
+                                              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1 text-center">
+                                                팀 {match.team2}
+                                              </label>
+                                              <div className="flex items-stretch gap-2">
+                                                <button
+                                                  onClick={() => setEditingScore(round.id, quarter, match.team2, getEditingScore(round.id, quarter, match.team2, match.score2, matchIndex) - 1, matchIndex)}
+                                                  disabled={savingScore === getScoreKey(round.id, quarter, match.team2, matchIndex) || getEditingScore(round.id, quarter, match.team2, match.score2, matchIndex) <= 0}
+                                                  className="flex-shrink-0 w-10 h-10 flex items-center justify-center bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-gray-700 dark:text-gray-200 rounded-lg font-bold text-xl disabled:opacity-50 disabled:cursor-not-allowed transition-colors touch-manipulation"
+                                                >
+                                                  −
+                                                </button>
+                                                <input
+                                                  type="number"
+                                                  min="0"
+                                                  value={getEditingScore(round.id, quarter, match.team2, match.score2, matchIndex)}
+                                                  onChange={(e) => setEditingScore(round.id, quarter, match.team2, parseInt(e.target.value) || 0, matchIndex)}
+                                                  disabled={savingScore === getScoreKey(round.id, quarter, match.team2, matchIndex)}
+                                                  className="flex-1 min-w-0 px-2 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-center text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50"
+                                                />
+                                                <button
+                                                  onClick={() => setEditingScore(round.id, quarter, match.team2, getEditingScore(round.id, quarter, match.team2, match.score2, matchIndex) + 1, matchIndex)}
+                                                  disabled={savingScore === getScoreKey(round.id, quarter, match.team2, matchIndex)}
+                                                  className="flex-shrink-0 w-10 h-10 flex items-center justify-center bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-gray-700 dark:text-gray-200 rounded-lg font-bold text-xl disabled:opacity-50 disabled:cursor-not-allowed transition-colors touch-manipulation"
+                                                >
+                                                  +
+                                                </button>
+                                              </div>
+                                            </div>
+                                          </div>
+
+                                          {/* Save buttons for both teams */}
+                                          <div className="grid grid-cols-2 gap-2 mt-2">
                                             <button
-                                              onClick={() => saveScore(round.id, quarter, team.teamNumber)}
-                                              disabled={!hasChanges || isSaving}
-                                              className={`flex-shrink-0 px-4 py-2 rounded-lg font-medium text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto ${
-                                                hasChanges
+                                              onClick={() => saveScore(round.id, quarter, match.team1, matchIndex)}
+                                              disabled={editingScores[getScoreKey(round.id, quarter, match.team1, matchIndex)] === undefined || savingScore === getScoreKey(round.id, quarter, match.team1, matchIndex)}
+                                              className={`px-3 py-1.5 rounded-lg font-medium text-xs transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                                                editingScores[getScoreKey(round.id, quarter, match.team1, matchIndex)] !== undefined
                                                   ? 'bg-indigo-600 hover:bg-indigo-700 text-white'
                                                   : 'bg-gray-200 dark:bg-gray-600 text-gray-500 dark:text-gray-400'
                                               }`}
                                             >
-                                              {isSaving ? '저장중...' : '저장'}
+                                              팀 {match.team1} 저장
+                                            </button>
+                                            <button
+                                              onClick={() => saveScore(round.id, quarter, match.team2, matchIndex)}
+                                              disabled={editingScores[getScoreKey(round.id, quarter, match.team2, matchIndex)] === undefined || savingScore === getScoreKey(round.id, quarter, match.team2, matchIndex)}
+                                              className={`px-3 py-1.5 rounded-lg font-medium text-xs transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                                                editingScores[getScoreKey(round.id, quarter, match.team2, matchIndex)] !== undefined
+                                                  ? 'bg-indigo-600 hover:bg-indigo-700 text-white'
+                                                  : 'bg-gray-200 dark:bg-gray-600 text-gray-500 dark:text-gray-400'
+                                              }`}
+                                            >
+                                              팀 {match.team2} 저장
                                             </button>
                                           </div>
                                         </div>
-                                      )
-                                    })}
+                                      ))
+                                    ) : (
+                                      // Legacy format: display by team
+                                      round.teams.map((team: any) => {
+                                        const currentScore = quarterScore?.scores?.[team.teamNumber] || 0
+                                        const editingScore = getEditingScore(round.id, quarter, team.teamNumber, currentScore)
+                                        const scoreKey = getScoreKey(round.id, quarter, team.teamNumber)
+                                        const isSaving = savingScore === scoreKey
+                                        const hasChanges = editingScores[scoreKey] !== undefined && editingScores[scoreKey] !== currentScore
+
+                                        return (
+                                          <div key={team.teamNumber} className="bg-white dark:bg-gray-800 rounded-lg p-3">
+                                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                              팀 {team.teamNumber}
+                                            </label>
+                                            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full">
+                                              <div className="flex items-stretch gap-2 w-full">
+                                                <button
+                                                  onClick={() => setEditingScore(round.id, quarter, team.teamNumber, editingScore - 1)}
+                                                  disabled={isSaving || editingScore <= 0}
+                                                  className="flex-shrink-0 w-12 h-12 flex items-center justify-center bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-gray-700 dark:text-gray-200 rounded-lg font-bold text-xl disabled:opacity-50 disabled:cursor-not-allowed transition-colors touch-manipulation"
+                                                >
+                                                  −
+                                                </button>
+                                                <input
+                                                  type="number"
+                                                  min="0"
+                                                  value={editingScore}
+                                                  onChange={(e) => setEditingScore(round.id, quarter, team.teamNumber, parseInt(e.target.value) || 0)}
+                                                  disabled={isSaving}
+                                                  className="flex-1 min-w-0 px-2 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-center text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50"
+                                                />
+                                                <button
+                                                  onClick={() => setEditingScore(round.id, quarter, team.teamNumber, editingScore + 1)}
+                                                  disabled={isSaving}
+                                                  className="flex-shrink-0 w-12 h-12 flex items-center justify-center bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-gray-700 dark:text-gray-200 rounded-lg font-bold text-xl disabled:opacity-50 disabled:cursor-not-allowed transition-colors touch-manipulation"
+                                                >
+                                                  +
+                                                </button>
+                                              </div>
+                                              <button
+                                                onClick={() => saveScore(round.id, quarter, team.teamNumber)}
+                                                disabled={!hasChanges || isSaving}
+                                                className={`flex-shrink-0 px-4 py-2 rounded-lg font-medium text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto ${
+                                                  hasChanges
+                                                    ? 'bg-indigo-600 hover:bg-indigo-700 text-white'
+                                                    : 'bg-gray-200 dark:bg-gray-600 text-gray-500 dark:text-gray-400'
+                                                }`}
+                                              >
+                                                {isSaving ? '저장중...' : '저장'}
+                                              </button>
+                                            </div>
+                                          </div>
+                                        )
+                                      })
+                                    )}
                                   </div>
                                 </div>
                               )
@@ -977,25 +1170,89 @@ export default function GameDetailPage() {
                             <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-600">
                               <div className="text-center">
                                 {(() => {
-                                  const scores = Object.entries(totalScores).map(([teamNum, score]) => ({
-                                    teamNum: parseInt(teamNum),
-                                    score: score as number
-                                  }))
-                                  const maxScore = Math.max(...scores.map(s => s.score))
-                                  const winners = scores.filter(s => s.score === maxScore)
+                                  if (hasMatchFormat && teamCount >= 3) {
+                                    // 3+ teams: Show winner based on most wins
+                                    const records = Object.entries(teamRecords).map(([teamNum, record]) => ({
+                                      teamNum: parseInt(teamNum),
+                                      ...record
+                                    }))
+                                    const maxWins = Math.max(...records.map(r => r.wins))
+                                    const winners = records.filter(r => r.wins === maxWins)
 
-                                  if (winners.length > 1) {
-                                    return (
-                                      <span className="text-lg font-bold text-yellow-600 dark:text-yellow-400">
-                                        무승부 ({winners.map(w => `팀 ${w.teamNum}`).join(', ')}: {maxScore}점)
-                                      </span>
-                                    )
-                                  } else if (winners.length === 1) {
-                                    return (
-                                      <span className="text-lg font-bold text-green-600 dark:text-green-400">
-                                        팀 {winners[0].teamNum} 승리! ({maxScore}점)
-                                      </span>
-                                    )
+                                    if (winners.length > 1) {
+                                      return (
+                                        <span className="text-lg font-bold text-yellow-600 dark:text-yellow-400">
+                                          공동 1위! {winners.map(w => `팀 ${w.teamNum} (${w.wins}승)`).join(', ')}
+                                        </span>
+                                      )
+                                    } else if (winners.length === 1) {
+                                      const winner = winners[0]
+                                      return (
+                                        <span className="text-lg font-bold text-green-600 dark:text-green-400">
+                                          팀 {winner.teamNum} 승리! ({winner.wins}승 {winner.losses}패)
+                                        </span>
+                                      )
+                                    }
+                                  } else if (hasMatchFormat && teamCount === 2) {
+                                    // 2 teams: Show winner based on wins
+                                    const team1 = sortedTeamNumbers[0]
+                                    const team2 = sortedTeamNumbers[1]
+                                    const record1 = teamRecords[team1]
+                                    const record2 = teamRecords[team2]
+
+                                    if (record1.wins > record2.wins) {
+                                      return (
+                                        <span className="text-lg font-bold text-green-600 dark:text-green-400">
+                                          팀 {team1} 승리! ({record1.wins}승 {record1.losses}패)
+                                        </span>
+                                      )
+                                    } else if (record2.wins > record1.wins) {
+                                      return (
+                                        <span className="text-lg font-bold text-green-600 dark:text-green-400">
+                                          팀 {team2} 승리! ({record2.wins}승 {record2.losses}패)
+                                        </span>
+                                      )
+                                    } else if (totalScores[team1] > totalScores[team2]) {
+                                      return (
+                                        <span className="text-lg font-bold text-green-600 dark:text-green-400">
+                                          팀 {team1} 승리! (득점 {totalScores[team1]} - {totalScores[team2]})
+                                        </span>
+                                      )
+                                    } else if (totalScores[team2] > totalScores[team1]) {
+                                      return (
+                                        <span className="text-lg font-bold text-green-600 dark:text-green-400">
+                                          팀 {team2} 승리! (득점 {totalScores[team2]} - {totalScores[team1]})
+                                        </span>
+                                      )
+                                    } else {
+                                      return (
+                                        <span className="text-lg font-bold text-yellow-600 dark:text-yellow-400">
+                                          무승부! ({record1.wins}승 {record1.losses}패, {totalScores[team1]}점)
+                                        </span>
+                                      )
+                                    }
+                                  } else {
+                                    // Legacy format: Show winner based on total score
+                                    const scores = Object.entries(totalScores).map(([teamNum, score]) => ({
+                                      teamNum: parseInt(teamNum),
+                                      score: score as number
+                                    }))
+                                    const maxScore = Math.max(...scores.map(s => s.score))
+                                    const winners = scores.filter(s => s.score === maxScore)
+
+                                    if (winners.length > 1) {
+                                      return (
+                                        <span className="text-lg font-bold text-yellow-600 dark:text-yellow-400">
+                                          무승부 ({winners.map(w => `팀 ${w.teamNum}`).join(', ')}: {maxScore}점)
+                                        </span>
+                                      )
+                                    } else if (winners.length === 1) {
+                                      return (
+                                        <span className="text-lg font-bold text-green-600 dark:text-green-400">
+                                          팀 {winners[0].teamNum} 승리! ({maxScore}점)
+                                        </span>
+                                      )
+                                    }
                                   }
                                   return null
                                 })()}

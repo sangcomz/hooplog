@@ -15,9 +15,16 @@ interface TeamResult {
   players: Player[]
 }
 
+interface Match {
+  team1: number
+  team2: number
+  score1: number
+  score2: number
+}
+
 interface QuarterScore {
   quarter: number
-  scores: { [teamNumber: number]: number }
+  matches: Match[]
 }
 
 interface Round {
@@ -110,6 +117,24 @@ function distributePlayersRandomly(players: Player[], teamCount: number): TeamRe
   })
 
   return teams
+}
+
+function generateMatchPairs(teamCount: number): [number, number][] {
+  const pairs: [number, number][] = []
+
+  // For 2 teams, just one match
+  if (teamCount === 2) {
+    pairs.push([1, 2])
+  } else {
+    // For 3+ teams, generate all possible pairs (round robin)
+    for (let i = 1; i <= teamCount; i++) {
+      for (let j = i + 1; j <= teamCount; j++) {
+        pairs.push([i, j])
+      }
+    }
+  }
+
+  return pairs
 }
 
 export async function POST(
@@ -250,12 +275,26 @@ export async function POST(
       console.log('[MATCH POST] Migrated old teams to round 1')
     }
 
+    // Generate match pairs for this team count
+    const matchPairs = generateMatchPairs(teamCount)
+
+    // Create initial quarter with matches (all scores set to 0)
+    const initialMatches: Match[] = matchPairs.map(([team1, team2]) => ({
+      team1,
+      team2,
+      score1: 0,
+      score2: 0
+    }))
+
     // Create new round
     const newRound: Round = {
       id: `round-${Date.now()}-${rounds.length + 1}`,
       roundNumber: rounds.length + 1,
       teams,
-      quarterScores: [],
+      quarterScores: [{
+        quarter: 1,
+        matches: initialMatches
+      }],
       maxQuarter: 1,
       createdAt: Date.now(),
     }
@@ -360,7 +399,24 @@ export async function PATCH(
       return NextResponse.json({ error: "Round not found" }, { status: 404 })
     }
 
-    rounds[roundIndex].maxQuarter = maxQuarter
+    const round = rounds[roundIndex]
+    const teamCount = round.teams.length
+    const matchPairs = generateMatchPairs(teamCount)
+
+    // Add new quarter with initial matches (all scores set to 0)
+    const newMatches: Match[] = matchPairs.map(([team1, team2]) => ({
+      team1,
+      team2,
+      score1: 0,
+      score2: 0
+    }))
+
+    round.quarterScores.push({
+      quarter: maxQuarter,
+      matches: newMatches
+    })
+
+    round.maxQuarter = maxQuarter
 
     // Save updated rounds
     const [updatedGame] = await db
