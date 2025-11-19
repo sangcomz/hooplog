@@ -16,6 +16,17 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "HoopLog",
   description: "Basketball team management app",
+  openGraph: {
+    title: "HoopLog",
+    description: "농구팀 관리 시스템",
+    type: "website",
+    locale: "ko_KR",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "HoopLog",
+    description: "농구팀 관리 시스템",
+  },
 };
 
 export default function RootLayout({
